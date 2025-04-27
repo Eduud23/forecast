@@ -52,21 +52,27 @@ def get_sales_data():
 
     return df
 
-def adjust_forecast(df, label, scale_factor=1.0):
+def adjust_forecast_for_season(df, season, scale_factor=1.0):
+    # Only forecast within the specific season range
     if df.empty or len(df) < 2:
-        return { "label": label, "error": "Not enough data." }
+        return { "label": season, "error": "Not enough data." }
 
-    # Use moving average or linear regression for forecast adjustment
-    # Adjust forecast based on moving average and seasonality
+    # Filter data based on the season
+    if season == "Dry Season":
+        season_df = df[df['season'] == "Dry Season"]
+    elif season == "Rainy Season":
+        season_df = df[df['season'] == "Rainy Season"]
+    else:
+        return { "label": season, "error": "Unknown season." }
 
-    last_actual = df['total_php'].iloc[-1]
-    avg_sales = df['moving_avg'].iloc[-1] if not pd.isna(df['moving_avg'].iloc[-1]) else last_actual
+    last_actual = season_df['total_php'].iloc[-1]
+    avg_sales = season_df['moving_avg'].iloc[-1] if not pd.isna(season_df['moving_avg'].iloc[-1]) else last_actual
     forecast_sales = avg_sales * scale_factor
 
     trend = "Increasing" if forecast_sales > last_actual else "Decreasing" if forecast_sales < last_actual else "Flat"
 
     return {
-        "label": label,
+        "label": season,
         "forecast_sales": round(forecast_sales, 2),
         "trend": trend
     }
@@ -75,13 +81,11 @@ def adjust_forecast(df, label, scale_factor=1.0):
 @app.route('/forecast', methods=['GET'])
 def forecast_api():
     df = get_sales_data()
-    dry_df = df[df['season'] == "Dry Season"]
-    rainy_df = df[df['season'] == "Rainy Season"]
 
-    # Prepare forecast data
-    dry_forecast = adjust_forecast(dry_df, "🌞 Dry Season", scale_factor=1.1)  # Increased slightly for dry season
-    rainy_forecast = adjust_forecast(rainy_df, "🌧️ Rainy Season", scale_factor=0.9)  # Slightly reduced for rainy season
-    next_month_forecast = adjust_forecast(df, "📅 Next Month")
+    # Prepare forecast data for each season
+    dry_forecast = adjust_forecast_for_season(df, "Dry Season", scale_factor=1.1)  # Increased slightly for dry season
+    rainy_forecast = adjust_forecast_for_season(df, "Rainy Season", scale_factor=0.9)  # Slightly reduced for rainy season
+    next_month_forecast = adjust_forecast_for_season(df, "Next Month", scale_factor=1.0)
 
     results = {
         "historical_data": {

@@ -9,17 +9,17 @@
 <body>
     <h1>Sales Forecast for Different Periods</h1>
 
-    <!-- Canvas for Dry Season -->
+    <!-- Dry Season Forecast -->
     <h3>Dry Season Sales Forecast</h3>
     <canvas id="drySeasonChart" width="400" height="200"></canvas>
     <p id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
 
-    <!-- Canvas for Rainy Season -->
+    <!-- Rainy Season Forecast -->
     <h3>Rainy Season Sales Forecast</h3>
     <canvas id="rainySeasonChart" width="400" height="200"></canvas>
     <p id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
 
-    <!-- Canvas for Next Month -->
+    <!-- Next Month Forecast -->
     <h3>Next Month Sales Forecast</h3>
     <canvas id="nextMonthChart" width="400" height="200"></canvas>
     <p id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
@@ -56,9 +56,16 @@
                         fill: false
                     },
                     {
+                        label: 'Moving Average',
+                        data: historicalData.moving_avg.concat([drySeason.forecast_sales]),
+                        borderColor: 'rgb(75, 192, 192)',
+                        fill: false,
+                        borderDash: [5, 5]
+                    },
+                    {
                         label: 'Dry Season Forecast',
                         data: historicalData.sales.concat([drySeason.forecast_sales]),
-                        borderColor: 'rgb(75, 192, 192)',
+                        borderColor: 'rgb(53, 162, 235)',
                         fill: false
                     }
                 ]
@@ -73,6 +80,13 @@
                         data: historicalData.sales.concat([rainySeason.forecast_sales]),
                         borderColor: 'rgb(255, 159, 64)',
                         fill: false
+                    },
+                    {
+                        label: 'Moving Average',
+                        data: historicalData.moving_avg.concat([rainySeason.forecast_sales]),
+                        borderColor: 'rgb(75, 192, 192)',
+                        fill: false,
+                        borderDash: [5, 5]
                     },
                     {
                         label: 'Rainy Season Forecast',
@@ -92,6 +106,13 @@
                         data: historicalData.sales.concat([nextMonth.forecast_sales]),
                         borderColor: 'rgb(153, 102, 255)',
                         fill: false
+                    },
+                    {
+                        label: 'Moving Average',
+                        data: historicalData.moving_avg.concat([nextMonth.forecast_sales]),
+                        borderColor: 'rgb(75, 192, 192)',
+                        fill: false,
+                        borderDash: [5, 5]
                     },
                     {
                         label: 'Next Month Forecast',
@@ -120,8 +141,7 @@
                             title: {
                                 display: true,
                                 text: 'Sales (PHP)'
-                            },
-                            beginAtZero: true
+                            }
                         }
                     }
                 }
@@ -145,8 +165,7 @@
                             title: {
                                 display: true,
                                 text: 'Sales (PHP)'
-                            },
-                            beginAtZero: true
+                            }
                         }
                     }
                 }
@@ -170,8 +189,7 @@
                             title: {
                                 display: true,
                                 text: 'Sales (PHP)'
-                            },
-                            beginAtZero: true
+                            }
                         }
                     }
                 }
