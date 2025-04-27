@@ -38,33 +38,36 @@ def get_sales_data():
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date')
-    
+
     # Resample data by month to reduce points (Monthly data)
     df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
-    
-    df['days_since'] = (df['date'] - df['date'].min()).dt.days
+
+    # Apply Moving Average (e.g., 3-month moving average) for smoothing
+    df['moving_avg'] = df['total_php'].rolling(window=3).mean()
+
+    # Add seasonal adjustment based on historical trends
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
     )
+
     return df
 
-def forecast(df_subset, label, scale_factor=1.0):
-    if df_subset.empty or len(df_subset) < 2:
+def adjust_forecast(df, label, scale_factor=1.0):
+    if df.empty or len(df) < 2:
         return { "label": label, "error": "Not enough data." }
 
-    x = df_subset[['days_since']].values
-    y = df_subset[['total_php']].values
-    model = LinearRegression().fit(x, y)
+    # Use moving average or linear regression for forecast adjustment
+    # Adjust forecast based on moving average and seasonality
 
-    forecast_day = df_subset['days_since'].max() + 30
-    predicted = model.predict([[forecast_day]])[0][0] * scale_factor
+    last_actual = df['total_php'].iloc[-1]
+    avg_sales = df['moving_avg'].iloc[-1] if not pd.isna(df['moving_avg'].iloc[-1]) else last_actual
+    forecast_sales = avg_sales * scale_factor
 
-    last_actual = y[-1][0]
-    trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
+    trend = "Increasing" if forecast_sales > last_actual else "Decreasing" if forecast_sales < last_actual else "Flat"
 
     return {
         "label": label,
-        "forecast_sales": round(predicted, 2),
+        "forecast_sales": round(forecast_sales, 2),
         "trend": trend
     }
 
@@ -76,14 +79,15 @@ def forecast_api():
     rainy_df = df[df['season'] == "Rainy Season"]
 
     # Prepare forecast data
-    dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5)
-    rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5)
-    next_month_forecast = forecast(df, "📅 Next Month")
+    dry_forecast = adjust_forecast(dry_df, "🌞 Dry Season", scale_factor=1.1)  # Increased slightly for dry season
+    rainy_forecast = adjust_forecast(rainy_df, "🌧️ Rainy Season", scale_factor=0.9)  # Slightly reduced for rainy season
+    next_month_forecast = adjust_forecast(df, "📅 Next Month")
 
     results = {
         "historical_data": {
             "dates": df['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": df['total_php'].tolist()
+            "sales": df['total_php'].tolist(),
+            "moving_avg": df['moving_avg'].tolist()  # Include moving averages
         },
         "forecast_data": [
             dry_forecast,
