@@ -9,9 +9,17 @@
 <body>
     <h1>Sales Forecast for Different Periods</h1>
 
-    <!-- Canvas for All Forecasts -->
-    <h3>Sales Forecast Over Time</h3>
-    <canvas id="forecastChart" width="400" height="200"></canvas>
+    <!-- Canvas for Dry Season -->
+    <h3>Dry Season Sales Forecast</h3>
+    <canvas id="drySeasonChart" width="400" height="200"></canvas>
+
+    <!-- Canvas for Rainy Season -->
+    <h3>Rainy Season Sales Forecast</h3>
+    <canvas id="rainySeasonChart" width="400" height="200"></canvas>
+
+    <!-- Canvas for Next Month -->
+    <h3>Next Month Sales Forecast</h3>
+    <canvas id="nextMonthChart" width="400" height="200"></canvas>
 
     <script>
         async function fetchForecastData() {
@@ -20,7 +28,7 @@
             return data;
         }
 
-        async function renderChart() {
+        async function renderCharts() {
             const forecastData = await fetchForecastData();
 
             // Prepare data for each season and next month
@@ -29,9 +37,13 @@
             const rainySeason = forecastData.forecast_data.find(item => item.label === "🌧️ Rainy Season");
             const nextMonth = forecastData.forecast_data.find(item => item.label === "📅 Next Month");
 
-            // Combine historical sales data and forecast data
-            const chartData = {
-                labels: historicalData.dates.concat(drySeason.days_since.map(day => (new Date(historicalData.dates[0])).setDate(new Date(historicalData.dates[0]).getDate() + day))),
+            // Dry Season Chart
+            const drySeasonChartData = {
+                labels: historicalData.dates.concat(drySeason.days_since.map(day => {
+                    const date = new Date(historicalData.dates[0]);
+                    date.setDate(date.getDate() + day);
+                    return date.toISOString().split('T')[0]; // Format date as yyyy-mm-dd
+                })),
                 datasets: [
                     {
                         label: 'Historical Sales (PHP)',
@@ -44,26 +56,61 @@
                         data: drySeason.forecast_sales,
                         borderColor: 'rgb(75, 192, 192)',
                         fill: false
+                    }
+                ]
+            };
+
+            // Rainy Season Chart
+            const rainySeasonChartData = {
+                labels: historicalData.dates.concat(rainySeason.days_since.map(day => {
+                    const date = new Date(historicalData.dates[0]);
+                    date.setDate(date.getDate() + day);
+                    return date.toISOString().split('T')[0]; // Format date as yyyy-mm-dd
+                })),
+                datasets: [
+                    {
+                        label: 'Historical Sales (PHP)',
+                        data: historicalData.sales,
+                        borderColor: 'rgb(255, 159, 64)',
+                        fill: false
                     },
                     {
                         label: 'Rainy Season Forecast',
                         data: rainySeason.forecast_sales,
                         borderColor: 'rgb(53, 162, 235)',
                         fill: false
+                    }
+                ]
+            };
+
+            // Next Month Chart
+            const nextMonthChartData = {
+                labels: historicalData.dates.concat(nextMonth.days_since.map(day => {
+                    const date = new Date(historicalData.dates[0]);
+                    date.setDate(date.getDate() + day);
+                    return date.toISOString().split('T')[0]; // Format date as yyyy-mm-dd
+                })),
+                datasets: [
+                    {
+                        label: 'Historical Sales (PHP)',
+                        data: historicalData.sales,
+                        borderColor: 'rgb(153, 102, 255)',
+                        fill: false
                     },
                     {
                         label: 'Next Month Forecast',
                         data: nextMonth.forecast_sales,
-                        borderColor: 'rgb(255, 159, 64)',
+                        borderColor: 'rgb(75, 192, 192)',
                         fill: false
                     }
                 ]
             };
 
-            const ctx = document.getElementById('forecastChart').getContext('2d');
-            new Chart(ctx, {
+            // Render Dry Season Chart
+            const ctxDry = document.getElementById('drySeasonChart').getContext('2d');
+            new Chart(ctxDry, {
                 type: 'line',
-                data: chartData,
+                data: drySeasonChartData,
                 options: {
                     responsive: true,
                     scales: {
@@ -71,11 +118,56 @@
                             title: {
                                 display: true,
                                 text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Sales (PHP)'
                             },
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                tooltipFormat: 'll'
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Render Rainy Season Chart
+            const ctxRainy = document.getElementById('rainySeasonChart').getContext('2d');
+            new Chart(ctxRainy, {
+                type: 'line',
+                data: rainySeasonChartData,
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Sales (PHP)'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Render Next Month Chart
+            const ctxNextMonth = document.getElementById('nextMonthChart').getContext('2d');
+            new Chart(ctxNextMonth, {
+                type: 'line',
+                data: nextMonthChartData,
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
                             }
                         },
                         y: {
@@ -90,7 +182,7 @@
             });
         }
 
-        renderChart();
+        renderCharts();
     </script>
 </body>
 </html>
