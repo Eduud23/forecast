@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Sales Forecast for Dry and Rainy Seasons</h1>
+    <canvas id="forecastChart" width="400" height="200"></canvas>
+
+    <script>
+        async function fetchForecastData() {
+            const response = await fetch('/forecast');
+            const data = await response.json();
+            return data;
+        }
+
+        async function renderChart() {
+            const forecastData = await fetchForecastData();
+
+            const labels = ["Dry Season", "Rainy Season", "Next Month"];
+            const forecastSales = forecastData.map(item => item.forecast_sales);
+            const trends = forecastData.map(item => item.trend);
+
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sales Forecast (PHP)',
+                        data: forecastSales,
+                        borderColor: 'rgb(75, 192, 192)',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Log trends to the console
+            console.log("Trends:", trends);
+        }
+
+        renderChart();
+    </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 import os
 import json
@@ -77,6 +77,11 @@ def forecast_api():
         forecast(df, "📅 Next Month")
     ]
     return jsonify(results)
+
+# === RENDER THE HTML PAGE WITH CHART ===
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 # === MAIN ===
 if __name__ == '__main__':
