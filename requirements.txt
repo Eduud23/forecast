@@ -4,4 +4,3 @@ firebase-admin
 pandas
 scikit-learn
 gunicorn
-Chart.js
