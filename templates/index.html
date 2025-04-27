@@ -9,77 +9,80 @@
 <body>
     <h1>Sales Forecast for Different Periods</h1>
 
-    <!-- Canvas for Dry Season -->
-    <h3>🌞 Dry Season Forecast</h3>
-    <canvas id="drySeasonChart" width="400" height="200"></canvas>
-
-    <!-- Canvas for Rainy Season -->
-    <h3>🌧️ Rainy Season Forecast</h3>
-    <canvas id="rainySeasonChart" width="400" height="200"></canvas>
-
-    <!-- Canvas for Next Month -->
-    <h3>📅 Next Month Forecast</h3>
-    <canvas id="nextMonthChart" width="400" height="200"></canvas>
+    <!-- Canvas for All Forecasts -->
+    <h3>Sales Forecast Over Time</h3>
+    <canvas id="forecastChart" width="400" height="200"></canvas>
 
     <script>
         async function fetchForecastData() {
-            try {
-                const response = await fetch('/forecast');
-                if (!response.ok) {
-                    throw new Error('Failed to fetch forecast data');
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error("Error fetching forecast data:", error);
-                return [];
-            }
+            const response = await fetch('/forecast');
+            const data = await response.json();
+            return data;
         }
 
-        async function renderCharts() {
+        async function renderChart() {
             const forecastData = await fetchForecastData();
-            if (!forecastData || forecastData.length === 0) {
-                return;
-            }
 
-            // Get forecast data for each category
-            const drySeason = forecastData.find(item => item.label === "🌞 Dry Season");
-            const rainySeason = forecastData.find(item => item.label === "🌧️ Rainy Season");
-            const nextMonth = forecastData.find(item => item.label === "📅 Next Month");
+            // Prepare data for each season and next month
+            const historicalData = forecastData.historical_data;
+            const drySeason = forecastData.forecast_data.find(item => item.label === "🌞 Dry Season");
+            const rainySeason = forecastData.forecast_data.find(item => item.label === "🌧️ Rainy Season");
+            const nextMonth = forecastData.forecast_data.find(item => item.label === "📅 Next Month");
 
-            // Data for the Dry Season Chart
-            const dryLabels = ["Dry Season"];
-            const dryForecastSales = [drySeason.forecast_sales];
-            renderChart('drySeasonChart', dryLabels, dryForecastSales);
-
-            // Data for the Rainy Season Chart
-            const rainyLabels = ["Rainy Season"];
-            const rainyForecastSales = [rainySeason.forecast_sales];
-            renderChart('rainySeasonChart', rainyLabels, rainyForecastSales);
-
-            // Data for the Next Month Chart
-            const nextMonthLabels = ["Next Month"];
-            const nextMonthSales = [nextMonth.forecast_sales];
-            renderChart('nextMonthChart', nextMonthLabels, nextMonthSales);
-        }
-
-        function renderChart(chartId, labels, forecastSales) {
-            const ctx = document.getElementById(chartId).getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Sales Forecast (PHP)',
-                        data: forecastSales,
+            // Combine historical sales data and forecast data
+            const chartData = {
+                labels: historicalData.dates.concat(drySeason.days_since.map(day => (new Date(historicalData.dates[0])).setDate(new Date(historicalData.dates[0]).getDate() + day))),
+                datasets: [
+                    {
+                        label: 'Historical Sales (PHP)',
+                        data: historicalData.sales,
+                        borderColor: 'rgb(255, 99, 132)',
+                        fill: false
+                    },
+                    {
+                        label: 'Dry Season Forecast',
+                        data: drySeason.forecast_sales,
                         borderColor: 'rgb(75, 192, 192)',
                         fill: false
-                    }]
-                },
+                    },
+                    {
+                        label: 'Rainy Season Forecast',
+                        data: rainySeason.forecast_sales,
+                        borderColor: 'rgb(53, 162, 235)',
+                        fill: false
+                    },
+                    {
+                        label: 'Next Month Forecast',
+                        data: nextMonth.forecast_sales,
+                        borderColor: 'rgb(255, 159, 64)',
+                        fill: false
+                    }
+                ]
+            };
+
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: chartData,
                 options: {
                     responsive: true,
                     scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            },
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'll'
+                            }
+                        },
                         y: {
+                            title: {
+                                display: true,
+                                text: 'Sales (PHP)'
+                            },
                             beginAtZero: true
                         }
                     }
@@ -87,8 +90,7 @@
             });
         }
 
-        // Render all charts when the page loads
-        renderCharts();
+        renderChart();
     </script>
 </body>
 </html>

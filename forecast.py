@@ -52,16 +52,18 @@ def forecast(df_subset, label, scale_factor=1.0):
     y = df_subset[['total_php']].values
     model = LinearRegression().fit(x, y)
 
-    forecast_day = df_subset['days_since'].max() + 30
-    predicted = model.predict([[forecast_day]])[0][0] * scale_factor
+    # Predict sales for every day in the time span
+    forecast_days = pd.DataFrame({
+        'days_since': range(df_subset['days_since'].min(), df_subset['days_since'].max() + 31)  # Predict for the next 30 days
+    })
+    forecast_sales = model.predict(forecast_days[['days_since']])
 
-    last_actual = y[-1][0]
-    trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
-
+    forecast_sales = forecast_sales * scale_factor  # Apply scale factor for dry/rainy season
+    
     return {
         "label": label,
-        "forecast_sales": round(predicted, 2),
-        "trend": trend
+        "days_since": forecast_days['days_since'].tolist(),
+        "forecast_sales": forecast_sales.tolist()
     }
 
 # === API ROUTE ===
@@ -71,12 +73,22 @@ def forecast_api():
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
+    # Get historical data for plotting
+    historical_data = {
+        "dates": df['date'].dt.strftime('%Y-%m-%d').tolist(),
+        "sales": df['total_php'].tolist()
+    }
+
+    # Forecast data
     results = [
         forecast(dry_df, "🌞 Dry Season", scale_factor=1.5),
         forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5),
         forecast(df, "📅 Next Month")
     ]
-    return jsonify(results)
+    return jsonify({
+        "historical_data": historical_data,
+        "forecast_data": results
+    })
 
 # === RENDER THE HTML PAGE WITH CHART ===
 @app.route('/')
