@@ -7,13 +7,19 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <h1>Sales Forecast for Dry and Rainy Seasons</h1>
-    
-    <!-- Canvas for chart -->
-    <canvas id="forecastChart" width="400" height="200"></canvas>
+    <h1>Sales Forecast for Different Periods</h1>
 
-    <h3>Trends</h3>
-    <ul id="trendList"></ul>
+    <!-- Canvas for Dry Season -->
+    <h3>🌞 Dry Season Forecast</h3>
+    <canvas id="drySeasonChart" width="400" height="200"></canvas>
+
+    <!-- Canvas for Rainy Season -->
+    <h3>🌧️ Rainy Season Forecast</h3>
+    <canvas id="rainySeasonChart" width="400" height="200"></canvas>
+
+    <!-- Canvas for Next Month -->
+    <h3>📅 Next Month Forecast</h3>
+    <canvas id="nextMonthChart" width="400" height="200"></canvas>
 
     <script>
         async function fetchForecastData() {
@@ -30,19 +36,36 @@
             }
         }
 
-        async function renderChart() {
+        async function renderCharts() {
             const forecastData = await fetchForecastData();
             if (!forecastData || forecastData.length === 0) {
                 return;
             }
 
-            const labels = ["Dry Season", "Rainy Season", "Next Month"];
-            const forecastSales = forecastData.map(item => item.forecast_sales);
-            const trends = forecastData.map(item => item.trend);
+            // Get forecast data for each category
+            const drySeason = forecastData.find(item => item.label === "🌞 Dry Season");
+            const rainySeason = forecastData.find(item => item.label === "🌧️ Rainy Season");
+            const nextMonth = forecastData.find(item => item.label === "📅 Next Month");
 
-            // Render the chart
-            const ctx = document.getElementById('forecastChart').getContext('2d');
-            const chart = new Chart(ctx, {
+            // Data for the Dry Season Chart
+            const dryLabels = ["Dry Season"];
+            const dryForecastSales = [drySeason.forecast_sales];
+            renderChart('drySeasonChart', dryLabels, dryForecastSales);
+
+            // Data for the Rainy Season Chart
+            const rainyLabels = ["Rainy Season"];
+            const rainyForecastSales = [rainySeason.forecast_sales];
+            renderChart('rainySeasonChart', rainyLabels, rainyForecastSales);
+
+            // Data for the Next Month Chart
+            const nextMonthLabels = ["Next Month"];
+            const nextMonthSales = [nextMonth.forecast_sales];
+            renderChart('nextMonthChart', nextMonthLabels, nextMonthSales);
+        }
+
+        function renderChart(chartId, labels, forecastSales) {
+            const ctx = document.getElementById(chartId).getContext('2d');
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
@@ -62,18 +85,10 @@
                     }
                 }
             });
-
-            // Display trends below the chart
-            const trendList = document.getElementById('trendList');
-            forecastData.forEach(item => {
-                const listItem = document.createElement('li');
-                listItem.textContent = `${item.label}: ${item.trend}`;
-                trendList.appendChild(listItem);
-            });
         }
 
-        // Run the function to render the chart
-        renderChart();
+        // Render all charts when the page loads
+        renderCharts();
     </script>
 </body>
 </html>
