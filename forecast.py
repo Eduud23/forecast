@@ -91,11 +91,14 @@ def get_monthly_sales_for_graph():
         # Convert Period to string for JSON serialization
         df['month_year'] = df['month_year'].astype(str)
 
+        # Convert month_year to datetime to use .dt accessor
+        df['month_year_datetime'] = pd.to_datetime(df['month_year'].astype(str))
+
         df_monthly = df.groupby('month_year').agg({'total_php': 'sum'}).reset_index()
 
         # Prepare forecasted data for dry season, rainy season, and overall
-        dry_df = df[df['month_year'].dt.month.isin([12, 1, 2, 3, 4, 5])]
-        rainy_df = df[df['month_year'].dt.month.isin([6, 7, 8, 9, 10, 11])]
+        dry_df = df[df['month_year_datetime'].dt.month.isin([12, 1, 2, 3, 4, 5])]
+        rainy_df = df[df['month_year_datetime'].dt.month.isin([6, 7, 8, 9, 10, 11])]
 
         dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5)
         rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5)
