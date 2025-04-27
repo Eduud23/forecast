@@ -38,42 +38,33 @@ def get_sales_data():
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date')
-
+    
     # Resample data by month to reduce points (Monthly data)
     df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
-
-    # Apply Moving Average (e.g., 3-month moving average) for smoothing
-    df['moving_avg'] = df['total_php'].rolling(window=3).mean()
-
-    # Add seasonal adjustment based on historical trends
+    
+    df['days_since'] = (df['date'] - df['date'].min()).dt.days
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
     )
-
     return df
 
-def adjust_forecast_for_season(df, season, scale_factor=1.0):
-    # Only forecast within the specific season range
-    if df.empty or len(df) < 2:
-        return { "label": season, "error": "Not enough data." }
+def forecast(df_subset, label, scale_factor=1.0):
+    if df_subset.empty or len(df_subset) < 2:
+        return { "label": label, "error": "Not enough data." }
 
-    # Filter data based on the season
-    if season == "Dry Season":
-        season_df = df[df['season'] == "Dry Season"]
-    elif season == "Rainy Season":
-        season_df = df[df['season'] == "Rainy Season"]
-    else:
-        return { "label": season, "error": "Unknown season." }
+    x = df_subset[['days_since']].values
+    y = df_subset[['total_php']].values
+    model = LinearRegression().fit(x, y)
 
-    last_actual = season_df['total_php'].iloc[-1]
-    avg_sales = season_df['moving_avg'].iloc[-1] if not pd.isna(season_df['moving_avg'].iloc[-1]) else last_actual
-    forecast_sales = avg_sales * scale_factor
+    forecast_day = df_subset['days_since'].max() + 30
+    predicted = model.predict([[forecast_day]])[0][0] * scale_factor
 
-    trend = "Increasing" if forecast_sales > last_actual else "Decreasing" if forecast_sales < last_actual else "Flat"
+    last_actual = y[-1][0]
+    trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
 
     return {
-        "label": season,
-        "forecast_sales": round(forecast_sales, 2),
+        "label": label,
+        "forecast_sales": round(predicted, 2),
         "trend": trend
     }
 
@@ -81,23 +72,41 @@ def adjust_forecast_for_season(df, season, scale_factor=1.0):
 @app.route('/forecast', methods=['GET'])
 def forecast_api():
     df = get_sales_data()
+    dry_df = df[df['season'] == "Dry Season"]
+    rainy_df = df[df['season'] == "Rainy Season"]
 
-    # Prepare forecast data for each season
-    dry_forecast = adjust_forecast_for_season(df, "Dry Season", scale_factor=1.1)  # Increased slightly for dry season
-    rainy_forecast = adjust_forecast_for_season(df, "Rainy Season", scale_factor=0.9)  # Slightly reduced for rainy season
-    next_month_forecast = adjust_forecast_for_season(df, "Next Month", scale_factor=1.0)
+    # Adjust the data to a specific time range within the season
+    start_date_dry = datetime(2024, 1, 1)
+    end_date_dry = datetime(2024, 5, 31)
+    dry_df_specific = dry_df[(dry_df['date'] >= start_date_dry) & (dry_df['date'] <= end_date_dry)]
+
+    start_date_rainy = datetime(2024, 6, 1)
+    end_date_rainy = datetime(2024, 11, 30)
+    rainy_df_specific = rainy_df[(rainy_df['date'] >= start_date_rainy) & (rainy_df['date'] <= end_date_rainy)]
+
+    # Prepare forecast data
+    dry_forecast = forecast(dry_df_specific, "🌞 Dry Season", scale_factor=1.5)
+    rainy_forecast = forecast(rainy_df_specific, "🌧️ Rainy Season", scale_factor=1.5)
+    next_month_forecast = forecast(df, "📅 Next Month")
 
     results = {
         "historical_data": {
             "dates": df['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": df['total_php'].tolist(),
-            "moving_avg": df['moving_avg'].tolist()  # Include moving averages
+            "sales": df['total_php'].tolist()
         },
         "forecast_data": [
             dry_forecast,
             rainy_forecast,
             next_month_forecast
-        ]
+        ],
+        "dry_season_specific_data": {
+            "dates": dry_df_specific['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "sales": dry_df_specific['total_php'].tolist()
+        },
+        "rainy_season_specific_data": {
+            "dates": rainy_df_specific['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "sales": rainy_df_specific['total_php'].tolist()
+        }
     }
 
     return jsonify(results)

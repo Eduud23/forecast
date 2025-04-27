@@ -9,17 +9,17 @@
 <body>
     <h1>Sales Forecast for Different Periods</h1>
 
-    <!-- Dry Season Forecast -->
+    <!-- Canvas for Dry Season -->
     <h3>Dry Season Sales Forecast</h3>
     <canvas id="drySeasonChart" width="400" height="200"></canvas>
     <p id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
 
-    <!-- Rainy Season Forecast -->
+    <!-- Canvas for Rainy Season -->
     <h3>Rainy Season Sales Forecast</h3>
     <canvas id="rainySeasonChart" width="400" height="200"></canvas>
     <p id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
 
-    <!-- Next Month Forecast -->
+    <!-- Canvas for Next Month -->
     <h3>Next Month Sales Forecast</h3>
     <canvas id="nextMonthChart" width="400" height="200"></canvas>
     <p id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
@@ -40,57 +40,46 @@
             const rainySeason = forecastData.forecast_data.find(item => item.label === "🌧️ Rainy Season");
             const nextMonth = forecastData.forecast_data.find(item => item.label === "📅 Next Month");
 
+            const drySeasonSpecific = forecastData.dry_season_specific_data;
+            const rainySeasonSpecific = forecastData.rainy_season_specific_data;
+
             // Display Forecast Sales
             document.getElementById('drySeasonForecast').children[0].textContent = drySeason.forecast_sales;
             document.getElementById('rainySeasonForecast').children[0].textContent = rainySeason.forecast_sales;
             document.getElementById('nextMonthForecast').children[0].textContent = nextMonth.forecast_sales;
 
-            // Dry Season Chart
+            // Dry Season Specific Chart
             const drySeasonChartData = {
-                labels: historicalData.dates.concat(drySeason.forecast_sales ? ['Next Forecast'] : []),
+                labels: drySeasonSpecific.dates.concat(drySeason.forecast_sales ? ['Next Forecast'] : []),
                 datasets: [
                     {
-                        label: 'Historical Sales (PHP)',
-                        data: historicalData.sales.concat([drySeason.forecast_sales]),
+                        label: 'Dry Season Specific Sales (PHP)',
+                        data: drySeasonSpecific.sales.concat([drySeason.forecast_sales]),
                         borderColor: 'rgb(255, 99, 132)',
                         fill: false
                     },
                     {
-                        label: 'Moving Average',
-                        data: historicalData.moving_avg.concat([drySeason.forecast_sales]),
-                        borderColor: 'rgb(75, 192, 192)',
-                        fill: false,
-                        borderDash: [5, 5]
-                    },
-                    {
                         label: 'Dry Season Forecast',
-                        data: historicalData.sales.concat([drySeason.forecast_sales]),
-                        borderColor: 'rgb(53, 162, 235)',
+                        data: drySeasonSpecific.sales.concat([drySeason.forecast_sales]),
+                        borderColor: 'rgb(75, 192, 192)',
                         fill: false
                     }
                 ]
             };
 
-            // Rainy Season Chart
+            // Rainy Season Specific Chart
             const rainySeasonChartData = {
-                labels: historicalData.dates.concat(rainySeason.forecast_sales ? ['Next Forecast'] : []),
+                labels: rainySeasonSpecific.dates.concat(rainySeason.forecast_sales ? ['Next Forecast'] : []),
                 datasets: [
                     {
-                        label: 'Historical Sales (PHP)',
-                        data: historicalData.sales.concat([rainySeason.forecast_sales]),
+                        label: 'Rainy Season Specific Sales (PHP)',
+                        data: rainySeasonSpecific.sales.concat([rainySeason.forecast_sales]),
                         borderColor: 'rgb(255, 159, 64)',
                         fill: false
                     },
                     {
-                        label: 'Moving Average',
-                        data: historicalData.moving_avg.concat([rainySeason.forecast_sales]),
-                        borderColor: 'rgb(75, 192, 192)',
-                        fill: false,
-                        borderDash: [5, 5]
-                    },
-                    {
                         label: 'Rainy Season Forecast',
-                        data: historicalData.sales.concat([rainySeason.forecast_sales]),
+                        data: rainySeasonSpecific.sales.concat([rainySeason.forecast_sales]),
                         borderColor: 'rgb(53, 162, 235)',
                         fill: false
                     }
@@ -106,13 +95,6 @@
                         data: historicalData.sales.concat([nextMonth.forecast_sales]),
                         borderColor: 'rgb(153, 102, 255)',
                         fill: false
-                    },
-                    {
-                        label: 'Moving Average',
-                        data: historicalData.moving_avg.concat([nextMonth.forecast_sales]),
-                        borderColor: 'rgb(75, 192, 192)',
-                        fill: false,
-                        borderDash: [5, 5]
                     },
                     {
                         label: 'Next Month Forecast',
@@ -141,7 +123,8 @@
                             title: {
                                 display: true,
                                 text: 'Sales (PHP)'
-                            }
+                            },
+                            beginAtZero: true
                         }
                     }
                 }
@@ -165,7 +148,8 @@
                             title: {
                                 display: true,
                                 text: 'Sales (PHP)'
-                            }
+                            },
+                            beginAtZero: true
                         }
                     }
                 }
@@ -189,7 +173,8 @@
                             title: {
                                 display: true,
                                 text: 'Sales (PHP)'
-                            }
+                            },
+                            beginAtZero: true
                         }
                     }
                 }
