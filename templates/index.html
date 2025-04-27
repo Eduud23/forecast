@@ -23,7 +23,7 @@
 
     <script>
         async function fetchForecastData() {
-            const response = await fetch('/forecast'); // Get forecast data from your endpoint
+            const response = await fetch('/forecast');
             const data = await response.json();
             return data;
         }
@@ -31,29 +31,37 @@
         async function renderCharts() {
             const forecastData = await fetchForecastData();
 
-            // Prepare data for each season and next month
-            const drySeason = forecastData.find(item => item.label === "🌞 Dry Season");
-            const rainySeason = forecastData.find(item => item.label === "🌧️ Rainy Season");
-            const nextMonth = forecastData.find(item => item.label === "📅 Next Month");
+            // Historical data
+            const historicalData = forecastData.historical_data;
 
-            // Date formatting for x-axis (Month-Year)
-            const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            // Dry Season, Rainy Season, and Next Month forecasts
+            const drySeason = forecastData.forecast_data.find(item => item.label === "🌞 Dry Season");
+            const rainySeason = forecastData.forecast_data.find(item => item.label === "🌧️ Rainy Season");
+            const nextMonth = forecastData.forecast_data.find(item => item.label === "📅 Next Month");
+
+            // Helper function to generate future dates for the forecast period
+            function generateForecastDates(startDate, days) {
+                return days.map(day => {
+                    const date = new Date(startDate);
+                    date.setDate(date.getDate() + day);
+                    return date.toISOString().split('T')[0]; // Format date as yyyy-mm-dd
+                });
+            }
 
             // Dry Season Chart
             const drySeasonChartData = {
-                labels: labels,
+                labels: historicalData.dates.concat(generateForecastDates(historicalData.dates[0], Array.from({length: 30}, (_, i) => i + 1))),
                 datasets: [
                     {
-                        label: 'Dry Season Sales (PHP)',
-                        data: drySeason.forecast_sales, // Replace with actual data
+                        label: 'Historical Sales (PHP)',
+                        data: historicalData.sales,
                         borderColor: 'rgb(255, 99, 132)',
                         fill: false
                     },
                     {
                         label: 'Dry Season Forecast',
-                        data: new Array(drySeason.forecast_sales.length - 1).fill(null).concat([drySeason.forecast_sales[0]]),
+                        data: drySeason.forecast_sales,
                         borderColor: 'rgb(75, 192, 192)',
-                        borderDash: [5, 5],
                         fill: false
                     }
                 ]
@@ -61,19 +69,18 @@
 
             // Rainy Season Chart
             const rainySeasonChartData = {
-                labels: labels,
+                labels: historicalData.dates.concat(generateForecastDates(historicalData.dates[0], Array.from({length: 30}, (_, i) => i + 1))),
                 datasets: [
                     {
-                        label: 'Rainy Season Sales (PHP)',
-                        data: rainySeason.forecast_sales, // Replace with actual data
+                        label: 'Historical Sales (PHP)',
+                        data: historicalData.sales,
                         borderColor: 'rgb(255, 159, 64)',
                         fill: false
                     },
                     {
                         label: 'Rainy Season Forecast',
-                        data: new Array(rainySeason.forecast_sales.length - 1).fill(null).concat([rainySeason.forecast_sales[0]]),
+                        data: rainySeason.forecast_sales,
                         borderColor: 'rgb(53, 162, 235)',
-                        borderDash: [5, 5],
                         fill: false
                     }
                 ]
@@ -81,19 +88,18 @@
 
             // Next Month Chart
             const nextMonthChartData = {
-                labels: labels,
+                labels: historicalData.dates.concat(generateForecastDates(historicalData.dates[0], Array.from({length: 30}, (_, i) => i + 1))),
                 datasets: [
                     {
-                        label: 'Next Month Sales (PHP)',
-                        data: nextMonth.forecast_sales, // Replace with actual data
+                        label: 'Historical Sales (PHP)',
+                        data: historicalData.sales,
                         borderColor: 'rgb(153, 102, 255)',
                         fill: false
                     },
                     {
                         label: 'Next Month Forecast',
-                        data: new Array(nextMonth.forecast_sales.length - 1).fill(null).concat([nextMonth.forecast_sales[0]]),
+                        data: nextMonth.forecast_sales,
                         borderColor: 'rgb(75, 192, 192)',
-                        borderDash: [5, 5],
                         fill: false
                     }
                 ]
@@ -110,7 +116,7 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Month'
+                                text: 'Date'
                             }
                         },
                         y: {
@@ -135,7 +141,7 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Month'
+                                text: 'Date'
                             }
                         },
                         y: {
@@ -160,7 +166,7 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Month'
+                                text: 'Date'
                             }
                         },
                         y: {

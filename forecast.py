@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify
 from flask_cors import CORS
 import os
 import json
@@ -71,65 +71,25 @@ def forecast_api():
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
-    results = [
-        forecast(dry_df, "🌞 Dry Season", scale_factor=1.5),
-        forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5),
-        forecast(df, "📅 Next Month")
-    ]
+    # Prepare forecast data
+    dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5)
+    rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5)
+    next_month_forecast = forecast(df, "📅 Next Month")
+
+    results = {
+        "historical_data": {
+            "dates": df['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "sales": df['total_php'].tolist()
+        },
+        "forecast_data": [
+            dry_forecast,
+            rainy_forecast,
+            next_month_forecast
+        ]
+    }
+
     return jsonify(results)
 
-# === NEW API ROUTE ===
-@app.route('/get_monthly_sales_for_graph', methods=['GET'])
-def get_monthly_sales_for_graph():
-    try:
-        # Fetch the raw sales data
-        df = get_sales_data()
-
-        # Prepare monthly aggregated data
-        df['month_year'] = df['date'].dt.to_period('M')
-
-        # Convert Period to string for JSON serialization
-        df['month_year'] = df['month_year'].astype(str)
-
-        # Convert month_year to datetime to use .dt accessor
-        df['month_year_datetime'] = pd.to_datetime(df['month_year'].astype(str))
-
-        df_monthly = df.groupby('month_year').agg({'total_php': 'sum'}).reset_index()
-
-        # Prepare forecasted data for dry season, rainy season, and overall
-        dry_df = df[df['month_year_datetime'].dt.month.isin([12, 1, 2, 3, 4, 5])]
-        rainy_df = df[df['month_year_datetime'].dt.month.isin([6, 7, 8, 9, 10, 11])]
-
-        dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5)
-        rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5)
-        all_forecast = forecast(df, "📅 Next Month")
-
-        # Create a new DataFrame for the next month's forecasted data
-        new_row = pd.DataFrame([{
-            'month_year': str(df_monthly['month_year'].max() + 1),  # Next month as string
-            'total_php': all_forecast['forecast_sales'],
-            'forecasted_sales': all_forecast['forecast_sales']
-        }])
-
-        # Concatenate the new row to the existing df_monthly
-        df_monthly = pd.concat([df_monthly, new_row], ignore_index=True)
-
-        # Return the monthly sales data along with forecasted data
-        return jsonify({
-            "monthly_sales": df_monthly.to_dict(orient="records"),
-            "dry_season_forecast": dry_forecast,
-            "rainy_season_forecast": rainy_forecast,
-            "all_data_forecast": all_forecast
-        })
-    except Exception as e:
-        print(f"Error in get_monthly_sales_for_graph: {e}")
-        return jsonify({"error": "Internal Server Error", "message": str(e)}), 500
-
-
-# === RENDER THE HTML PAGE WITH CHART ===
-@app.route('/')
-def index():
-    return render_template('index.html')
 
 # === MAIN ===
 if __name__ == '__main__':
