@@ -38,6 +38,10 @@ def get_sales_data():
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date')
+    
+    # Resample data by month to reduce points (Monthly data)
+    df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
+    
     df['days_since'] = (df['date'] - df['date'].min()).dt.days
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"

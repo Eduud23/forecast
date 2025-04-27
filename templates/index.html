@@ -12,14 +12,17 @@
     <!-- Canvas for Dry Season -->
     <h3>Dry Season Sales Forecast</h3>
     <canvas id="drySeasonChart" width="400" height="200"></canvas>
+    <p id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
 
     <!-- Canvas for Rainy Season -->
     <h3>Rainy Season Sales Forecast</h3>
     <canvas id="rainySeasonChart" width="400" height="200"></canvas>
+    <p id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
 
     <!-- Canvas for Next Month -->
     <h3>Next Month Sales Forecast</h3>
     <canvas id="nextMonthChart" width="400" height="200"></canvas>
+    <p id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
 
     <script>
         async function fetchForecastData() {
@@ -31,36 +34,30 @@
         async function renderCharts() {
             const forecastData = await fetchForecastData();
 
-            // Historical data
+            // Prepare data for each season and next month
             const historicalData = forecastData.historical_data;
-
-            // Dry Season, Rainy Season, and Next Month forecasts
             const drySeason = forecastData.forecast_data.find(item => item.label === "🌞 Dry Season");
             const rainySeason = forecastData.forecast_data.find(item => item.label === "🌧️ Rainy Season");
             const nextMonth = forecastData.forecast_data.find(item => item.label === "📅 Next Month");
 
-            // Helper function to generate future dates for the forecast period
-            function generateForecastDates(startDate, days) {
-                return days.map(day => {
-                    const date = new Date(startDate);
-                    date.setDate(date.getDate() + day);
-                    return date.toISOString().split('T')[0]; // Format date as yyyy-mm-dd
-                });
-            }
+            // Display Forecast Sales
+            document.getElementById('drySeasonForecast').children[0].textContent = drySeason.forecast_sales;
+            document.getElementById('rainySeasonForecast').children[0].textContent = rainySeason.forecast_sales;
+            document.getElementById('nextMonthForecast').children[0].textContent = nextMonth.forecast_sales;
 
             // Dry Season Chart
             const drySeasonChartData = {
-                labels: historicalData.dates.concat(generateForecastDates(historicalData.dates[0], Array.from({length: 30}, (_, i) => i + 1))),
+                labels: historicalData.dates.concat(drySeason.forecast_sales ? ['Next Forecast'] : []),
                 datasets: [
                     {
                         label: 'Historical Sales (PHP)',
-                        data: historicalData.sales,
+                        data: historicalData.sales.concat([drySeason.forecast_sales]),
                         borderColor: 'rgb(255, 99, 132)',
                         fill: false
                     },
                     {
                         label: 'Dry Season Forecast',
-                        data: drySeason.forecast_sales,
+                        data: historicalData.sales.concat([drySeason.forecast_sales]),
                         borderColor: 'rgb(75, 192, 192)',
                         fill: false
                     }
@@ -69,17 +66,17 @@
 
             // Rainy Season Chart
             const rainySeasonChartData = {
-                labels: historicalData.dates.concat(generateForecastDates(historicalData.dates[0], Array.from({length: 30}, (_, i) => i + 1))),
+                labels: historicalData.dates.concat(rainySeason.forecast_sales ? ['Next Forecast'] : []),
                 datasets: [
                     {
                         label: 'Historical Sales (PHP)',
-                        data: historicalData.sales,
+                        data: historicalData.sales.concat([rainySeason.forecast_sales]),
                         borderColor: 'rgb(255, 159, 64)',
                         fill: false
                     },
                     {
                         label: 'Rainy Season Forecast',
-                        data: rainySeason.forecast_sales,
+                        data: historicalData.sales.concat([rainySeason.forecast_sales]),
                         borderColor: 'rgb(53, 162, 235)',
                         fill: false
                     }
@@ -88,17 +85,17 @@
 
             // Next Month Chart
             const nextMonthChartData = {
-                labels: historicalData.dates.concat(generateForecastDates(historicalData.dates[0], Array.from({length: 30}, (_, i) => i + 1))),
+                labels: historicalData.dates.concat(nextMonth.forecast_sales ? ['Next Forecast'] : []),
                 datasets: [
                     {
                         label: 'Historical Sales (PHP)',
-                        data: historicalData.sales,
+                        data: historicalData.sales.concat([nextMonth.forecast_sales]),
                         borderColor: 'rgb(153, 102, 255)',
                         fill: false
                     },
                     {
                         label: 'Next Month Forecast',
-                        data: nextMonth.forecast_sales,
+                        data: historicalData.sales.concat([nextMonth.forecast_sales]),
                         borderColor: 'rgb(75, 192, 192)',
                         fill: false
                     }
