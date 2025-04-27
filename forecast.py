@@ -87,6 +87,10 @@ def get_monthly_sales_for_graph():
 
         # Prepare monthly aggregated data
         df['month_year'] = df['date'].dt.to_period('M')
+
+        # Convert Period to string for JSON serialization
+        df['month_year'] = df['month_year'].astype(str)
+
         df_monthly = df.groupby('month_year').agg({'total_php': 'sum'}).reset_index()
 
         # Prepare forecasted data for dry season, rainy season, and overall
@@ -99,7 +103,7 @@ def get_monthly_sales_for_graph():
 
         # Create a new DataFrame for the next month's forecasted data
         new_row = pd.DataFrame([{
-            'month_year': df_monthly['month_year'].max() + 1,  # Next month
+            'month_year': str(df_monthly['month_year'].max() + 1),  # Next month as string
             'total_php': all_forecast['forecast_sales'],
             'forecasted_sales': all_forecast['forecast_sales']
         }])
