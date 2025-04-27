@@ -5,129 +5,177 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales Forecast</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-    <h1>Sales Forecasting</h1>
+    <h1>Sales Forecast for Different Periods</h1>
 
-    <h2>🌞 Dry Season Sales</h2>
-    <canvas id="drySeasonChart"></canvas>
+    <!-- Canvas for Dry Season -->
+    <h3>Dry Season Sales Forecast</h3>
+    <canvas id="drySeasonChart" width="400" height="200"></canvas>
 
-    <h2>🌧️ Rainy Season Sales</h2>
-    <canvas id="rainySeasonChart"></canvas>
+    <!-- Canvas for Rainy Season -->
+    <h3>Rainy Season Sales Forecast</h3>
+    <canvas id="rainySeasonChart" width="400" height="200"></canvas>
 
-    <h2>📅 Overall Sales & Next Month Forecast</h2>
-    <canvas id="overallSalesChart"></canvas>
+    <!-- Canvas for Next Month -->
+    <h3>Next Month Sales Forecast</h3>
+    <canvas id="nextMonthChart" width="400" height="200"></canvas>
 
     <script>
-        $(document).ready(function() {
-            // Fetch the monthly sales data and forecasts
-            $.get('/get_monthly_sales_for_graph', function(data) {
-                const monthlySales = data.monthly_sales;
-                const drySeasonForecast = data.dry_season_forecast;
-                const rainySeasonForecast = data.rainy_season_forecast;
-                const overallForecast = data.all_data_forecast;
+        async function fetchForecastData() {
+            const response = await fetch('/forecast'); // Get forecast data from your endpoint
+            const data = await response.json();
+            return data;
+        }
 
-                // Prepare labels for x-axis (Months)
-                const labels = monthlySales.map(item => item.month_year);
-                
-                // Dry Season Sales Data
-                const drySeasonData = monthlySales.map(item => item.total_php);
-                const drySeasonForecastData = new Array(drySeasonData.length - 1).fill(null);
-                drySeasonForecastData.push(drySeasonForecast.forecast_sales);
+        async function renderCharts() {
+            const forecastData = await fetchForecastData();
 
-                // Rainy Season Sales Data
-                const rainySeasonData = monthlySales.map(item => item.total_php);
-                const rainySeasonForecastData = new Array(rainySeasonData.length - 1).fill(null);
-                rainySeasonForecastData.push(rainySeasonForecast.forecast_sales);
+            // Prepare data for each season and next month
+            const drySeason = forecastData.find(item => item.label === "🌞 Dry Season");
+            const rainySeason = forecastData.find(item => item.label === "🌧️ Rainy Season");
+            const nextMonth = forecastData.find(item => item.label === "📅 Next Month");
 
-                // Overall Sales Data with Forecast
-                const overallSalesData = monthlySales.map(item => item.total_php);
-                const overallForecastData = new Array(overallSalesData.length - 1).fill(null);
-                overallForecastData.push(overallForecast.forecast_sales);
+            // Date formatting for x-axis (Month-Year)
+            const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-                // Create Dry Season Chart
-                new Chart(document.getElementById('drySeasonChart'), {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Dry Season Sales',
-                            data: drySeasonData,
-                            borderColor: 'orange',
-                            fill: false
-                        }, {
-                            label: 'Dry Season Forecast',
-                            data: drySeasonForecastData,
-                            borderColor: 'red',
-                            borderDash: [5, 5],
-                            fill: false
-                        }]
+            // Dry Season Chart
+            const drySeasonChartData = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Dry Season Sales (PHP)',
+                        data: drySeason.forecast_sales, // Replace with actual data
+                        borderColor: 'rgb(255, 99, 132)',
+                        fill: false
                     },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            x: { title: { display: true, text: 'Month' } },
-                            y: { title: { display: true, text: 'Sales (PHP)' } }
+                    {
+                        label: 'Dry Season Forecast',
+                        data: new Array(drySeason.forecast_sales.length - 1).fill(null).concat([drySeason.forecast_sales[0]]),
+                        borderColor: 'rgb(75, 192, 192)',
+                        borderDash: [5, 5],
+                        fill: false
+                    }
+                ]
+            };
+
+            // Rainy Season Chart
+            const rainySeasonChartData = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Rainy Season Sales (PHP)',
+                        data: rainySeason.forecast_sales, // Replace with actual data
+                        borderColor: 'rgb(255, 159, 64)',
+                        fill: false
+                    },
+                    {
+                        label: 'Rainy Season Forecast',
+                        data: new Array(rainySeason.forecast_sales.length - 1).fill(null).concat([rainySeason.forecast_sales[0]]),
+                        borderColor: 'rgb(53, 162, 235)',
+                        borderDash: [5, 5],
+                        fill: false
+                    }
+                ]
+            };
+
+            // Next Month Chart
+            const nextMonthChartData = {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Next Month Sales (PHP)',
+                        data: nextMonth.forecast_sales, // Replace with actual data
+                        borderColor: 'rgb(153, 102, 255)',
+                        fill: false
+                    },
+                    {
+                        label: 'Next Month Forecast',
+                        data: new Array(nextMonth.forecast_sales.length - 1).fill(null).concat([nextMonth.forecast_sales[0]]),
+                        borderColor: 'rgb(75, 192, 192)',
+                        borderDash: [5, 5],
+                        fill: false
+                    }
+                ]
+            };
+
+            // Render Dry Season Chart
+            const ctxDry = document.getElementById('drySeasonChart').getContext('2d');
+            new Chart(ctxDry, {
+                type: 'line',
+                data: drySeasonChartData,
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Sales (PHP)'
+                            },
+                            beginAtZero: true
                         }
                     }
-                });
-
-                // Create Rainy Season Chart
-                new Chart(document.getElementById('rainySeasonChart'), {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Rainy Season Sales',
-                            data: rainySeasonData,
-                            borderColor: 'blue',
-                            fill: false
-                        }, {
-                            label: 'Rainy Season Forecast',
-                            data: rainySeasonForecastData,
-                            borderColor: 'green',
-                            borderDash: [5, 5],
-                            fill: false
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            x: { title: { display: true, text: 'Month' } },
-                            y: { title: { display: true, text: 'Sales (PHP)' } }
-                        }
-                    }
-                });
-
-                // Create Overall Sales & Next Month Forecast Chart
-                new Chart(document.getElementById('overallSalesChart'), {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Overall Sales',
-                            data: overallSalesData,
-                            borderColor: 'purple',
-                            fill: false
-                        }, {
-                            label: 'Next Month Forecast',
-                            data: overallForecastData,
-                            borderColor: 'brown',
-                            borderDash: [5, 5],
-                            fill: false
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            x: { title: { display: true, text: 'Month' } },
-                            y: { title: { display: true, text: 'Sales (PHP)' } }
-                        }
-                    }
-                });
+                }
             });
-        });
+
+            // Render Rainy Season Chart
+            const ctxRainy = document.getElementById('rainySeasonChart').getContext('2d');
+            new Chart(ctxRainy, {
+                type: 'line',
+                data: rainySeasonChartData,
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Sales (PHP)'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Render Next Month Chart
+            const ctxNextMonth = document.getElementById('nextMonthChart').getContext('2d');
+            new Chart(ctxNextMonth, {
+                type: 'line',
+                data: nextMonthChartData,
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Sales (PHP)'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        renderCharts();
     </script>
 </body>
 </html>
