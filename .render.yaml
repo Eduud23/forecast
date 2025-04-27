@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: forecast-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn forecast:app
