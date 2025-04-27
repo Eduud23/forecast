@@ -52,18 +52,16 @@ def forecast(df_subset, label, scale_factor=1.0):
     y = df_subset[['total_php']].values
     model = LinearRegression().fit(x, y)
 
-    # Predict sales for every day in the time span
-    forecast_days = pd.DataFrame({
-        'days_since': range(df_subset['days_since'].min(), df_subset['days_since'].max() + 31)  # Predict for the next 30 days
-    })
-    forecast_sales = model.predict(forecast_days[['days_since']])
+    forecast_day = df_subset['days_since'].max() + 30
+    predicted = model.predict([[forecast_day]])[0][0] * scale_factor
 
-    forecast_sales = forecast_sales * scale_factor  # Apply scale factor for dry/rainy season
-    
+    last_actual = y[-1][0]
+    trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
+
     return {
         "label": label,
-        "days_since": forecast_days['days_since'].tolist(),
-        "forecast_sales": forecast_sales.tolist()
+        "forecast_sales": round(predicted, 2),
+        "trend": trend
     }
 
 # === API ROUTE ===
@@ -73,21 +71,45 @@ def forecast_api():
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
-    # Get historical data for plotting
-    historical_data = {
-        "dates": df['date'].dt.strftime('%Y-%m-%d').tolist(),
-        "sales": df['total_php'].tolist()
-    }
-
-    # Forecast data
     results = [
         forecast(dry_df, "🌞 Dry Season", scale_factor=1.5),
         forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5),
         forecast(df, "📅 Next Month")
     ]
+    return jsonify(results)
+
+# === NEW API ROUTE ===
+@app.route('/get_monthly_sales_for_graph', methods=['GET'])
+def get_monthly_sales_for_graph():
+    # Fetch the raw sales data
+    df = get_sales_data()
+
+    # Prepare monthly aggregated data
+    df['month_year'] = df['date'].dt.to_period('M')
+    df_monthly = df.groupby('month_year').agg({'total_php': 'sum'}).reset_index()
+
+    # Prepare forecasted data for dry season, rainy season, and overall
+    dry_df = df[df['month_year'].dt.month.isin([12, 1, 2, 3, 4, 5])]
+    rainy_df = df[df['month_year'].dt.month.isin([6, 7, 8, 9, 10, 11])]
+    
+    dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5)
+    rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5)
+    all_forecast = forecast(df, "📅 Next Month")
+    
+    # Append the forecasted sales as the last point in the monthly data
+    df_monthly['forecasted_sales'] = None
+    df_monthly = df_monthly.append({
+        'month_year': df_monthly['month_year'].max() + 1,  # Next month
+        'total_php': all_forecast['forecast_sales'],
+        'forecasted_sales': all_forecast['forecast_sales']
+    }, ignore_index=True)
+
+    # Return the monthly sales data along with forecasted data
     return jsonify({
-        "historical_data": historical_data,
-        "forecast_data": results
+        "monthly_sales": df_monthly.to_dict(orient="records"),
+        "dry_season_forecast": dry_forecast,
+        "rainy_season_forecast": rainy_forecast,
+        "all_data_forecast": all_forecast
     })
 
 # === RENDER THE HTML PAGE WITH CHART ===
