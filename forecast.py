@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 import os
 import json
@@ -64,7 +64,7 @@ def forecast(df_subset, label, scale_factor=1.0):
         "trend": trend
     }
 
-# === API ROUTE ===
+# === API ROUTES ===
 @app.route('/forecast', methods=['GET'])
 def forecast_api():
     df = get_sales_data()
@@ -90,6 +90,9 @@ def forecast_api():
 
     return jsonify(results)
 
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 # === MAIN ===
 if __name__ == '__main__':
