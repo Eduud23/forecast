@@ -110,10 +110,10 @@ def forecast_units_api():
 
     for doc in docs:
         entry = doc.to_dict()
-        if 'date' in entry and 'units_sold' in entry and 'category' in entry:
+        if 'date' in entry and 'quantity' in entry and 'category' in entry:
             data.append({
                 'date': entry['date'],
-                'units_sold': entry['units_sold'],
+                'quantity': entry['quantity'],
                 'category': entry['category']
             })
 
@@ -146,7 +146,7 @@ def forecast_units_api():
             cat_df = season_df[season_df['category'] == category]
             if len(cat_df) >= 2:
                 x = cat_df[['days_since']].values
-                y = cat_df[['units_sold']].values
+                y = cat_df[['quantity']].values
                 model = LinearRegression().fit(x, y)
                 forecast_day = cat_df['days_since'].max() + 30
                 predicted_units = model.predict([[forecast_day]])[0][0]
