@@ -43,10 +43,10 @@
             const drySeasonSpecific = forecastData.dry_season_specific_data;
             const rainySeasonSpecific = forecastData.rainy_season_specific_data;
 
-            // Display Forecast Sales
-            document.getElementById('drySeasonForecast').children[0].textContent = drySeason.forecast_sales;
-            document.getElementById('rainySeasonForecast').children[0].textContent = rainySeason.forecast_sales;
-            document.getElementById('nextMonthForecast').children[0].textContent = nextMonth.forecast_sales;
+            document.getElementById('drySeasonForecast').children[0].textContent = `${drySeason.forecast_sales} (${drySeason.trend})`;
+            document.getElementById('rainySeasonForecast').children[0].textContent = `${rainySeason.forecast_sales} (${rainySeason.trend})`;
+            document.getElementById('nextMonthForecast').children[0].textContent = `${nextMonth.forecast_sales} (${nextMonth.trend})`;
+
 
             // Dry Season Specific Chart
             const drySeasonChartData = {
