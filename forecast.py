@@ -22,29 +22,33 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # === HELPER FUNCTIONS ===
-def get_sales_data():
+def get_sales_data_with_units():
     sales_ref = db.collection("sales_orders").order_by("date")
     docs = sales_ref.stream()
     data = []
 
     for doc in docs:
         entry = doc.to_dict()
-        if 'date' in entry and 'total_php' in entry:
+        # Check if all required fields exist
+        if 'date' in entry and 'units' in entry and 'category' in entry:
             data.append({
                 'date': entry['date'],
-                'total_php': entry['total_php']
+                'units': entry['units'],
+                'category': entry['category']
             })
 
+    if not data:
+        return pd.DataFrame(columns=['date', 'units', 'category'])
+
     df = pd.DataFrame(data)
-    df['date'] = pd.to_datetime(df['date'])
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df = df.dropna(subset=['date'])
     df = df.sort_values('date')
-    
-    df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
-    df['days_since'] = (df['date'] - df['date'].min()).dt.days
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
     )
     return df
+
 
 def forecast(df_subset, label, scale_factor=1.0):
     if df_subset.empty or len(df_subset) < 2:
