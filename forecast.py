@@ -21,8 +21,7 @@ cred = credentials.Certificate(json.loads(firebase_key_json))
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-
-# === HELPER FUNCTION FOR TOTAL SALES ===
+# === HELPER FUNCTIONS ===
 def get_sales_data():
     sales_ref = db.collection("sales_orders").order_by("date")
     docs = sales_ref.stream()
@@ -36,53 +35,20 @@ def get_sales_data():
                 'total_php': entry['total_php']
             })
 
-    if not data:
-        return pd.DataFrame(columns=['date', 'total_php'])
-
     df = pd.DataFrame(data)
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    df = df.dropna(subset=['date'])
+    df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date')
+    
+    df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
     df['days_since'] = (df['date'] - df['date'].min()).dt.days
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
     )
     return df
 
-
-# === HELPER FUNCTION FOR UNIT FORECASTING ===
-def get_sales_data_with_units():
-    sales_ref = db.collection("sales_orders").order_by("date")
-    docs = sales_ref.stream()
-    data = []
-
-    for doc in docs:
-        entry = doc.to_dict()
-        if 'date' in entry and 'units_sold' in entry and 'category' in entry:
-            data.append({
-                'date': entry['date'],
-                'units_sold': entry['units_sold'],
-                'category': entry['category']
-            })
-
-    if not data:
-        return pd.DataFrame(columns=['date', 'units_sold', 'category'])
-
-    df = pd.DataFrame(data)
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    df = df.dropna(subset=['date'])
-    df = df.sort_values('date')
-    df['days_since'] = (df['date'] - df['date'].min()).dt.days
-    df['season'] = df['date'].dt.month.apply(
-        lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
-    )
-    return df
-
-
-# === FORECAST FUNCTION ===
 def forecast(df_subset, label, scale_factor=1.0):
     if df_subset.empty or len(df_subset) < 2:
-        return {"label": label, "error": "Not enough data."}
+        return { "label": label, "error": "Not enough data." }
 
     x = df_subset[['days_since']].values
     y = df_subset[['total_php']].values
@@ -100,15 +66,10 @@ def forecast(df_subset, label, scale_factor=1.0):
         "trend": trend
     }
 
-
-# === ROUTES ===
-
+# === API ROUTES ===
 @app.route('/forecast', methods=['GET'])
 def forecast_api():
     df = get_sales_data()
-    if df.empty:
-        return jsonify({"error": "No sales data available"}), 400
-
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
@@ -141,12 +102,40 @@ def forecast_api():
 
     return jsonify(results)
 
-
 @app.route('/forecast-units', methods=['GET'])
 def forecast_units_api():
-    df = get_sales_data_with_units()
+    sales_ref = db.collection("sales_orders").order_by("date")
+    docs = sales_ref.stream()
+    data = []
+
+    for doc in docs:
+        entry = doc.to_dict()
+        if 'date' in entry and 'units_sold' in entry and 'category' in entry:
+            data.append({
+                'date': entry['date'],
+                'units_sold': entry['units_sold'],
+                'category': entry['category']
+            })
+
+    if not data:
+        return jsonify({"error": "No sales unit data found."}), 400
+
+    df = pd.DataFrame(data)
+
+    try:
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        df = df.dropna(subset=['date'])
+    except Exception as e:
+        return jsonify({"error": f"Date parsing failed: {str(e)}"}), 500
+
     if df.empty:
-        return jsonify({"error": "No unit sales data available"}), 400
+        return jsonify({"error": "No valid sales data after date cleaning."}), 400
+
+    df = df.sort_values('date')
+    df['days_since'] = (df['date'] - df['date'].min()).dt.days
+    df['season'] = df['date'].dt.month.apply(
+        lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
+    )
 
     results = {}
 
@@ -173,7 +162,6 @@ def forecast_units_api():
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 if __name__ == '__main__':
     app.run(debug=True)
