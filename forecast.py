@@ -157,19 +157,25 @@ def forecast_units_api():
                 })
         results[season] = season_result
 
-    # Predict units for the next month
+    # Predict units for the next month for each category
     next_month_df = df[df['date'] >= df['date'].max() - pd.DateOffset(months=1)]
     if not next_month_df.empty:
-        x_next = next_month_df[['days_since']].values
-        y_next = next_month_df[['quantity']].values
-        model_next = LinearRegression().fit(x_next, y_next)
-        forecast_day_next = x_next.max() + 30
-        predicted_units_next = model_next.predict([[forecast_day_next]])[0][0]
-        results["Next Month"] = [{"category": "All Categories", "forecast_units": round(predicted_units_next, 2)}]
+        next_month_results = []
+        for category in next_month_df['category'].unique():
+            cat_df = next_month_df[next_month_df['category'] == category]
+            if len(cat_df) >= 2:
+                x_next = cat_df[['days_since']].values
+                y_next = cat_df[['quantity']].values
+                model_next = LinearRegression().fit(x_next, y_next)
+                forecast_day_next = x_next.max() + 30
+                predicted_units_next = model_next.predict([[forecast_day_next]])[0][0]
+                next_month_results.append({
+                    "category": category,
+                    "forecast_units": round(predicted_units_next, 2)
+                })
+        results["Next Month"] = next_month_results
 
     return jsonify(results)
-
-
 
 @app.route('/')
 def index():
