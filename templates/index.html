@@ -48,25 +48,41 @@
         .forecast-text {
             font-weight: bold;
         }
+
+        .toggle-section {
+            display: none;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h3>Dry Season Sales Forecast (December to May)</h3>
-        <canvas id="drySeasonChart"></canvas>
+        <canvas id="drySeasonSalesChart"></canvas>
         <p class="forecast-text" id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
-        <button onclick="showCategoryForecast('Dry Season')">Show Dry Season Unit Forecasts</button>
-        <ul id="dryCategoryForecasts"></ul>
+
+        <button onclick="toggleUnitsForecast('dry')">Toggle Dry Season Unit Forecast</button>
+        <div id="dryUnitsSection" class="toggle-section">
+            <canvas id="drySeasonUnitsChart"></canvas>
+        </div>
 
         <h3>Rainy Season Sales Forecast (June to November)</h3>
-        <canvas id="rainySeasonChart"></canvas>
+        <canvas id="rainySeasonSalesChart"></canvas>
         <p class="forecast-text" id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
-        <button onclick="showCategoryForecast('Rainy Season')">Show Rainy Season Unit Forecasts</button>
-        <ul id="rainyCategoryForecasts"></ul>
+
+        <button onclick="toggleUnitsForecast('rainy')">Toggle Rainy Season Unit Forecast</button>
+        <div id="rainyUnitsSection" class="toggle-section">
+            <canvas id="rainySeasonUnitsChart"></canvas>
+        </div>
 
         <h3>Next Month Sales Forecast</h3>
-        <canvas id="nextMonthChart"></canvas>
+        <canvas id="nextMonthSalesChart"></canvas>
         <p class="forecast-text" id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
+
+        <button onclick="toggleUnitsForecast('next')">Toggle Next Month Unit Forecast</button>
+        <div id="nextUnitsSection" class="toggle-section">
+            <canvas id="nextMonthUnitsChart"></canvas>
+        </div>
     </div>
 
     <script>
@@ -75,22 +91,31 @@
             return response.json();
         }
 
-        async function fetchCategoryForecasts() {
+        async function fetchUnitForecastData() {
             const response = await fetch('/forecast-units');
             return response.json();
         }
 
-        async function showCategoryForecast(season) {
-            const data = await fetchCategoryForecasts();
-            const listId = season === 'Dry Season' ? 'dryCategoryForecasts' : 'rainyCategoryForecasts';
-            const target = document.getElementById(listId);
-            target.innerHTML = '';
+        function toggleUnitsForecast(season) {
+            const sectionId = {
+                dry: 'dryUnitsSection',
+                rainy: 'rainyUnitsSection',
+                next: 'nextUnitsSection'
+            }[season];
 
-            data[season].forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.category}: ${item.forecast_units} units`;
-                target.appendChild(li);
-            });
+            const chartId = {
+                dry: 'drySeasonUnitsChart',
+                rainy: 'rainySeasonUnitsChart',
+                next: 'nextMonthUnitsChart'
+            }[season];
+
+            const section = document.getElementById(sectionId);
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                renderUnitChart(season, chartId);
+            } else {
+                section.style.display = 'none';
+            }
         }
 
         async function renderCharts() {
@@ -104,8 +129,7 @@
             document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
             document.getElementById('nextMonthForecast').children[0].textContent = `${next.forecast_sales} (${next.trend})`;
 
-            const dryCtx = document.getElementById('drySeasonChart').getContext('2d');
-            new Chart(dryCtx, {
+            new Chart(document.getElementById('drySeasonSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: forecastData.dry_season_specific_data.dates.concat(['Forecast']),
@@ -118,8 +142,7 @@
                 }
             });
 
-            const rainyCtx = document.getElementById('rainySeasonChart').getContext('2d');
-            new Chart(rainyCtx, {
+            new Chart(document.getElementById('rainySeasonSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: forecastData.rainy_season_specific_data.dates.concat(['Forecast']),
@@ -132,8 +155,7 @@
                 }
             });
 
-            const nextCtx = document.getElementById('nextMonthChart').getContext('2d');
-            new Chart(nextCtx, {
+            new Chart(document.getElementById('nextMonthSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: forecastData.historical_data.dates.concat(['Forecast']),
@@ -143,6 +165,37 @@
                         borderColor: 'rgb(75,192,192)',
                         fill: false
                     }]
+                }
+            });
+        }
+
+        async function renderUnitChart(season, chartId) {
+            const forecastUnits = await fetchUnitForecastData();
+            let data = [];
+
+            if (season === 'dry') data = forecastUnits["Dry Season"];
+            else if (season === 'rainy') data = forecastUnits["Rainy Season"];
+            else if (season === 'next') data = forecastUnits["Next Month"];
+
+            new Chart(document.getElementById(chartId).getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.category),
+                    datasets: [{
+                        label: `${season.charAt(0).toUpperCase() + season.slice(1)} Unit Forecasts`,
+                        data: data.map(d => d.forecast_units),
+                        backgroundColor: 'rgba(100,149,237,0.6)',
+                        borderColor: 'rgba(100,149,237,1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
                 }
             });
         }

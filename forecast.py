@@ -104,6 +104,7 @@ def forecast_api():
 
 @app.route('/forecast-units', methods=['GET'])
 def forecast_units_api():
+    # Fetch sales data from Firestore
     sales_ref = db.collection("sales_orders").order_by("date")
     docs = sales_ref.stream()
     data = []
@@ -156,7 +157,18 @@ def forecast_units_api():
                 })
         results[season] = season_result
 
+    # Predict units for the next month
+    next_month_df = df[df['date'] >= df['date'].max() - pd.DateOffset(months=1)]
+    if not next_month_df.empty:
+        x_next = next_month_df[['days_since']].values
+        y_next = next_month_df[['quantity']].values
+        model_next = LinearRegression().fit(x_next, y_next)
+        forecast_day_next = x_next.max() + 30
+        predicted_units_next = model_next.predict([[forecast_day_next]])[0][0]
+        results["Next Month"] = [{"category": "All Categories", "forecast_units": round(predicted_units_next, 2)}]
+
     return jsonify(results)
+
 
 
 @app.route('/')
