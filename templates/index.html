@@ -8,261 +8,141 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
             background: linear-gradient(135deg, #f0f4f8, #c7e0e8);
             color: #333;
-        }
-
-        h1, h3 {
-            text-align: center;
-            color: #4b4b4b;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            font-size: 2.5em;
-            margin-top: 20px;
-        }
-
-        h3 {
-            font-size: 1.6em;
-            margin-bottom: 10px;
+            padding: 20px;
         }
 
         .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0 auto;
-            padding: 20px;
-            max-width: 1200px;
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        h3 {
+            color: #444;
         }
 
         canvas {
-            display: block;
-            margin: 0 auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 8px 12px;
+            background-color: #337ab7;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+
+        ul {
+            list-style-type: none;
+            padding-left: 10px;
+        }
+
+        li {
+            margin: 4px 0;
         }
 
         .forecast-text {
-            text-align: center;
-            font-size: 1.2em;
-            margin: 10px 0 30px 0;
-            color: #5a5a5a;
-        }
-
-        .forecast-text span {
             font-weight: bold;
-            font-size: 1.3em;
-            color: #2d72d9;
-        }
-
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2em;
-            }
-
-            h3 {
-                font-size: 1.4em;
-            }
-
-            .container {
-                padding: 10px;
-            }
-
-            canvas {
-                width: 90%;
-                height: auto;
-            }
-
-            .forecast-text {
-                font-size: 1em;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.6em;
-            }
-
-            h3 {
-                font-size: 1.2em;
-            }
-
-            .forecast-text {
-                font-size: 0.9em;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-       <!-- <h1>Sales Forecast for Different Periods</h1>-->
+        <h3>Dry Season Sales Forecast (December to May)</h3>
+        <canvas id="drySeasonChart"></canvas>
+        <p class="forecast-text" id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
+        <button onclick="showCategoryForecast('Dry Season')">Show Dry Season Unit Forecasts</button>
+        <ul id="dryCategoryForecasts"></ul>
 
-        <!-- Dry Season -->
-        <div>
-            <h3>Dry Season Sales Forecast (December to May)</h3>
-            <canvas id="drySeasonChart" width="400" height="200"></canvas>
-            <p class="forecast-text" id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
-        </div>
+        <h3>Rainy Season Sales Forecast (June to November)</h3>
+        <canvas id="rainySeasonChart"></canvas>
+        <p class="forecast-text" id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
+        <button onclick="showCategoryForecast('Rainy Season')">Show Rainy Season Unit Forecasts</button>
+        <ul id="rainyCategoryForecasts"></ul>
 
-        <!-- Rainy Season -->
-        <div>
-            <h3>Rainy Season Sales Forecast (June to November)</h3>
-            <canvas id="rainySeasonChart" width="400" height="200"></canvas>
-            <p class="forecast-text" id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
-        </div>
-
-        <!-- Next Month -->
-        <div>
-            <h3>Next Month Sales Forecast</h3>
-            <canvas id="nextMonthChart" width="400" height="200"></canvas>
-            <p class="forecast-text" id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
-        </div>
+        <h3>Next Month Sales Forecast</h3>
+        <canvas id="nextMonthChart"></canvas>
+        <p class="forecast-text" id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
     </div>
 
     <script>
         async function fetchForecastData() {
             const response = await fetch('/forecast');
-            const data = await response.json();
-            return data;
+            return response.json();
+        }
+
+        async function fetchCategoryForecasts() {
+            const response = await fetch('/forecast-units');
+            return response.json();
+        }
+
+        async function showCategoryForecast(season) {
+            const data = await fetchCategoryForecasts();
+            const listId = season === 'Dry Season' ? 'dryCategoryForecasts' : 'rainyCategoryForecasts';
+            const target = document.getElementById(listId);
+            target.innerHTML = '';
+
+            data[season].forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.category}: ${item.forecast_units} units`;
+                target.appendChild(li);
+            });
         }
 
         async function renderCharts() {
             const forecastData = await fetchForecastData();
 
-            const historicalData = forecastData.historical_data;
-            const drySeason = forecastData.forecast_data.find(item => item.label === "🌞 Dry Season");
-            const rainySeason = forecastData.forecast_data.find(item => item.label === "🌧️ Rainy Season");
-            const nextMonth = forecastData.forecast_data.find(item => item.label === "📅 Next Month");
+            const dry = forecastData.forecast_data.find(f => f.label.includes("Dry"));
+            const rainy = forecastData.forecast_data.find(f => f.label.includes("Rainy"));
+            const next = forecastData.forecast_data.find(f => f.label.includes("Next"));
 
-            const drySeasonSpecific = forecastData.dry_season_specific_data;
-            const rainySeasonSpecific = forecastData.rainy_season_specific_data;
+            document.getElementById('drySeasonForecast').children[0].textContent = `${dry.forecast_sales} (${dry.trend})`;
+            document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
+            document.getElementById('nextMonthForecast').children[0].textContent = `${next.forecast_sales} (${next.trend})`;
 
-            // Set forecast values with trend
-            document.getElementById('drySeasonForecast').children[0].textContent = `${drySeason.forecast_sales} (${drySeason.trend})`;
-            document.getElementById('rainySeasonForecast').children[0].textContent = `${rainySeason.forecast_sales} (${rainySeason.trend})`;
-            document.getElementById('nextMonthForecast').children[0].textContent = `${nextMonth.forecast_sales} (${nextMonth.trend})`;
-
-            // Dry Season Chart
-            const drySeasonChartData = {
-                labels: drySeasonSpecific.dates.concat(drySeason.forecast_sales ? ['Next Forecast'] : []),
-                datasets: [{
-                    data: drySeasonSpecific.sales.concat([drySeason.forecast_sales]),
-                    borderColor: 'rgb(255, 99, 132)',
-                    fill: false,
-                    tension: 0.3
-                }]
-            };
-
-            const ctxDry = document.getElementById('drySeasonChart').getContext('2d');
-            new Chart(ctxDry, {
+            const dryCtx = document.getElementById('drySeasonChart').getContext('2d');
+            new Chart(dryCtx, {
                 type: 'line',
-                data: drySeasonChartData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Sales (PHP)'
-                            },
-                            beginAtZero: true
-                        }
-                    }
+                data: {
+                    labels: forecastData.dry_season_specific_data.dates.concat(['Forecast']),
+                    datasets: [{
+                        label: 'Dry Season Sales',
+                        data: forecastData.dry_season_specific_data.sales.concat(dry.forecast_sales),
+                        borderColor: 'rgb(255,99,132)',
+                        fill: false
+                    }]
                 }
             });
 
-            // Rainy Season Chart
-            const rainySeasonChartData = {
-                labels: rainySeasonSpecific.dates.concat(rainySeason.forecast_sales ? ['Next Forecast'] : []),
-                datasets: [{
-                    data: rainySeasonSpecific.sales.concat([rainySeason.forecast_sales]),
-                    borderColor: 'rgb(53, 162, 235)',
-                    fill: false,
-                    tension: 0.3
-                }]
-            };
-
-            const ctxRainy = document.getElementById('rainySeasonChart').getContext('2d');
-            new Chart(ctxRainy, {
+            const rainyCtx = document.getElementById('rainySeasonChart').getContext('2d');
+            new Chart(rainyCtx, {
                 type: 'line',
-                data: rainySeasonChartData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Sales (PHP)'
-                            },
-                            beginAtZero: true
-                        }
-                    }
+                data: {
+                    labels: forecastData.rainy_season_specific_data.dates.concat(['Forecast']),
+                    datasets: [{
+                        label: 'Rainy Season Sales',
+                        data: forecastData.rainy_season_specific_data.sales.concat(rainy.forecast_sales),
+                        borderColor: 'rgb(54,162,235)',
+                        fill: false
+                    }]
                 }
             });
 
-            // Next Month Chart
-            const nextMonthChartData = {
-                labels: historicalData.dates.concat(nextMonth.forecast_sales ? ['Next Forecast'] : []),
-                datasets: [{
-                    data: historicalData.sales.concat([nextMonth.forecast_sales]),
-                    borderColor: 'rgb(75, 192, 192)',
-                    fill: false,
-                    tension: 0.3
-                }]
-            };
-
-            const ctxNextMonth = document.getElementById('nextMonthChart').getContext('2d');
-            new Chart(ctxNextMonth, {
+            const nextCtx = document.getElementById('nextMonthChart').getContext('2d');
+            new Chart(nextCtx, {
                 type: 'line',
-                data: nextMonthChartData,
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Sales (PHP)'
-                            },
-                            beginAtZero: true
-                        }
-                    }
+                data: {
+                    labels: forecastData.historical_data.dates.concat(['Forecast']),
+                    datasets: [{
+                        label: 'Monthly Sales',
+                        data: forecastData.historical_data.sales.concat(next.forecast_sales),
+                        borderColor: 'rgb(75,192,192)',
+                        fill: false
+                    }]
                 }
             });
         }

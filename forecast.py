@@ -39,9 +39,7 @@ def get_sales_data():
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date')
     
-    # Resample data by month to reduce points (Monthly data)
     df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
-    
     df['days_since'] = (df['date'] - df['date'].min()).dt.days
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
@@ -75,16 +73,9 @@ def forecast_api():
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
-    # Adjust the data to a specific time range within the season
-    start_date_dry = datetime(2024, 1, 1)
-    end_date_dry = datetime(2024, 5, 31)
-    dry_df_specific = dry_df[(dry_df['date'] >= start_date_dry) & (dry_df['date'] <= end_date_dry)]
+    dry_df_specific = dry_df[(dry_df['date'] >= datetime(2024, 1, 1)) & (dry_df['date'] <= datetime(2024, 5, 31))]
+    rainy_df_specific = rainy_df[(rainy_df['date'] >= datetime(2024, 6, 1)) & (rainy_df['date'] <= datetime(2024, 11, 30))]
 
-    start_date_rainy = datetime(2024, 6, 1)
-    end_date_rainy = datetime(2024, 11, 30)
-    rainy_df_specific = rainy_df[(rainy_df['date'] >= start_date_rainy) & (rainy_df['date'] <= end_date_rainy)]
-
-    # Prepare forecast data
     dry_forecast = forecast(dry_df_specific, "🌞 Dry Season", scale_factor=1.5)
     rainy_forecast = forecast(rainy_df_specific, "🌧️ Rainy Season", scale_factor=1.5)
     next_month_forecast = forecast(df, "📅 Next Month")
@@ -111,10 +102,53 @@ def forecast_api():
 
     return jsonify(results)
 
+@app.route('/forecast-units', methods=['GET'])
+def forecast_units_api():
+    sales_ref = db.collection("sales_orders").order_by("date")
+    docs = sales_ref.stream()
+    data = []
+
+    for doc in docs:
+        entry = doc.to_dict()
+        if 'date' in entry and 'units_sold' in entry and 'category' in entry:
+            data.append({
+                'date': entry['date'],
+                'units_sold': entry['units_sold'],
+                'category': entry['category']
+            })
+
+    df = pd.DataFrame(data)
+    df['date'] = pd.to_datetime(df['date'])
+    df = df.sort_values('date')
+    df['days_since'] = (df['date'] - df['date'].min()).dt.days
+    df['season'] = df['date'].dt.month.apply(
+        lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
+    )
+
+    results = {}
+
+    for season in ['Dry Season', 'Rainy Season']:
+        season_df = df[df['season'] == season]
+        season_result = []
+        for category in season_df['category'].unique():
+            cat_df = season_df[season_df['category'] == category]
+            if len(cat_df) >= 2:
+                x = cat_df[['days_since']].values
+                y = cat_df[['units_sold']].values
+                model = LinearRegression().fit(x, y)
+                forecast_day = cat_df['days_since'].max() + 30
+                predicted_units = model.predict([[forecast_day]])[0][0]
+                season_result.append({
+                    "category": category,
+                    "forecast_units": round(predicted_units, 2)
+                })
+        results[season] = season_result
+
+    return jsonify(results)
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# === MAIN ===
 if __name__ == '__main__':
     app.run(debug=True)
