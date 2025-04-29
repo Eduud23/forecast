@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from sklearn.linear_model import LinearRegression
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -80,7 +80,11 @@ def forecast_api():
 
     # === Next Month Forecast (Sales) ===
     today = datetime.today()
+
+    # Get the first day of next month
     next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
+    
+    # Get the last day of next month
     next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
 
     forecast_day = (next_month_start - df['date'].min()).days
@@ -177,7 +181,11 @@ def forecast_units_api():
 
     # === Next Month Forecast (Units) ===
     today = datetime.today()
+
+    # Get the first day of next month
     next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
+    
+    # Get the last day of next month
     next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
 
     forecast_day = (next_month_start - df['date'].min()).days
