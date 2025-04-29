@@ -38,7 +38,6 @@ def get_sales_data():
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date')
-    
     df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
     df['days_since'] = (df['date'] - df['date'].min()).dt.days
     df['season'] = df['date'].dt.month.apply(
@@ -78,7 +77,27 @@ def forecast_api():
 
     dry_forecast = forecast(dry_df_specific, "🌞 Dry Season", scale_factor=1.5)
     rainy_forecast = forecast(rainy_df_specific, "🌧️ Rainy Season", scale_factor=1.5)
-    next_month_forecast = forecast(df, "📅 Next Month")
+
+    # === Next Month Forecast (Sales) ===
+    today = datetime.today()
+    next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
+    next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
+
+    forecast_day = (next_month_start - df['date'].min()).days
+    model = LinearRegression().fit(df[['days_since']], df[['total_php']])
+    predicted = model.predict([[forecast_day]])[0][0]
+    last_actual = df['total_php'].iloc[-1]
+    trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
+
+    next_month_forecast = {
+        "label": "📅 Next Month",
+        "forecast_sales": round(predicted, 2),
+        "trend": trend,
+        "forecast_range": {
+            "start_date": next_month_start.strftime("%Y-%m-%d"),
+            "end_date": next_month_end.strftime("%Y-%m-%d")
+        }
+    }
 
     results = {
         "historical_data": {
@@ -104,7 +123,6 @@ def forecast_api():
 
 @app.route('/forecast-units', methods=['GET'])
 def forecast_units_api():
-    # Fetch sales data from Firestore
     sales_ref = db.collection("sales_orders").order_by("date")
     docs = sales_ref.stream()
     data = []
@@ -157,23 +175,31 @@ def forecast_units_api():
                 })
         results[season] = season_result
 
-    # Predict units for the next month for each category
-    next_month_df = df[df['date'] >= df['date'].max() - pd.DateOffset(months=1)]
-    if not next_month_df.empty:
-        next_month_results = []
-        for category in next_month_df['category'].unique():
-            cat_df = next_month_df[next_month_df['category'] == category]
-            if len(cat_df) >= 2:
-                x_next = cat_df[['days_since']].values
-                y_next = cat_df[['quantity']].values
-                model_next = LinearRegression().fit(x_next, y_next)
-                forecast_day_next = x_next.max() + 30
-                predicted_units_next = model_next.predict([[forecast_day_next]])[0][0]
-                next_month_results.append({
-                    "category": category,
-                    "forecast_units": round(predicted_units_next, 2)
-                })
-        results["Next Month"] = next_month_results
+    # === Next Month Forecast (Units) ===
+    today = datetime.today()
+    next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
+    next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
+
+    forecast_day = (next_month_start - df['date'].min()).days
+    next_month_results = []
+
+    for category in df['category'].unique():
+        cat_df = df[df['category'] == category]
+        if len(cat_df) >= 2:
+            x = cat_df[['days_since']].values
+            y = cat_df[['quantity']].values
+            model = LinearRegression().fit(x, y)
+            predicted_units = model.predict([[forecast_day]])[0][0]
+            next_month_results.append({
+                "category": category,
+                "forecast_units": round(predicted_units, 2)
+            })
+
+    results["Next Month Forecast Range"] = {
+        "start_date": next_month_start.strftime("%Y-%m-%d"),
+        "end_date": next_month_end.strftime("%Y-%m-%d")
+    }
+    results["Next Month"] = next_month_results
 
     return jsonify(results)
 
