@@ -36,23 +36,50 @@
             cursor: pointer;
         }
 
-        ul {
-            list-style-type: none;
-            padding-left: 10px;
-        }
-
-        li {
-            margin: 4px 0;
-        }
-
         .forecast-text {
             font-weight: bold;
         }
 
-        .toggle-section {
+        /* Modal Styles */
+        .modal {
             display: none;
-            margin-bottom: 20px;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
         }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 800px;
+            border-radius: 10px;
+            position: relative;
+        }
+
+        .close {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+        }
+
     </style>
 </head>
 <body>
@@ -60,32 +87,32 @@
         <h3>Dry Season Sales Forecast (December to May)</h3>
         <canvas id="drySeasonSalesChart"></canvas>
         <p class="forecast-text" id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
-
-        <button onclick="toggleUnitsForecast('dry')">Toggle Dry Season Unit Forecast</button>
-        <div id="dryUnitsSection" class="toggle-section">
-            <canvas id="drySeasonUnitsChart"></canvas>
-        </div>
+        <button onclick="showModal('dry')">Show Dry Season Unit Forecast</button>
 
         <h3>Rainy Season Sales Forecast (June to November)</h3>
         <canvas id="rainySeasonSalesChart"></canvas>
         <p class="forecast-text" id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
-
-        <button onclick="toggleUnitsForecast('rainy')">Toggle Rainy Season Unit Forecast</button>
-        <div id="rainyUnitsSection" class="toggle-section">
-            <canvas id="rainySeasonUnitsChart"></canvas>
-        </div>
+        <button onclick="showModal('rainy')">Show Rainy Season Unit Forecast</button>
 
         <h3>Next Month Sales Forecast</h3>
         <canvas id="nextMonthSalesChart"></canvas>
         <p class="forecast-text" id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
+        <button onclick="showModal('next')">Show Next Month Unit Forecast</button>
+    </div>
 
-        <button onclick="toggleUnitsForecast('next')">Toggle Next Month Unit Forecast</button>
-        <div id="nextUnitsSection" class="toggle-section">
-            <canvas id="nextMonthUnitsChart"></canvas>
+    <!-- Modal Template -->
+    <div id="unitForecastModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modalTitle">Unit Forecast</h3>
+            <canvas id="unitForecastChart"></canvas>
         </div>
     </div>
 
     <script>
+        let forecastUnitsData = null;
+        let unitChartInstance = null;
+
         async function fetchForecastData() {
             const response = await fetch('/forecast');
             return response.json();
@@ -96,30 +123,9 @@
             return response.json();
         }
 
-        function toggleUnitsForecast(season) {
-            const sectionId = {
-                dry: 'dryUnitsSection',
-                rainy: 'rainyUnitsSection',
-                next: 'nextUnitsSection'
-            }[season];
-
-            const chartId = {
-                dry: 'drySeasonUnitsChart',
-                rainy: 'rainySeasonUnitsChart',
-                next: 'nextMonthUnitsChart'
-            }[season];
-
-            const section = document.getElementById(sectionId);
-            if (section.style.display === 'none') {
-                section.style.display = 'block';
-                renderUnitChart(season, chartId);
-            } else {
-                section.style.display = 'none';
-            }
-        }
-
         async function renderCharts() {
             const forecastData = await fetchForecastData();
+            forecastUnitsData = await fetchUnitForecastData();
 
             const dry = forecastData.forecast_data.find(f => f.label.includes("Dry"));
             const rainy = forecastData.forecast_data.find(f => f.label.includes("Rainy"));
@@ -169,20 +175,35 @@
             });
         }
 
-        async function renderUnitChart(season, chartId) {
-            const forecastUnits = await fetchUnitForecastData();
+        function showModal(season) {
+            const modal = document.getElementById("unitForecastModal");
+            const ctx = document.getElementById("unitForecastChart").getContext('2d');
+            const title = document.getElementById("modalTitle");
+
             let data = [];
+            if (!forecastUnitsData) return;
 
-            if (season === 'dry') data = forecastUnits["Dry Season"];
-            else if (season === 'rainy') data = forecastUnits["Rainy Season"];
-            else if (season === 'next') data = forecastUnits["Next Month"];
+            if (season === 'dry') {
+                data = forecastUnitsData["Dry Season"];
+                title.textContent = "Dry Season Unit Forecast";
+            } else if (season === 'rainy') {
+                data = forecastUnitsData["Rainy Season"];
+                title.textContent = "Rainy Season Unit Forecast";
+            } else if (season === 'next') {
+                data = forecastUnitsData["Next Month"];
+                title.textContent = `Next Month Unit Forecast (${forecastUnitsData["Next Month Forecast Range"].start_date} to ${forecastUnitsData["Next Month Forecast Range"].end_date})`;
+            }
 
-            new Chart(document.getElementById(chartId).getContext('2d'), {
+            if (unitChartInstance) {
+                unitChartInstance.destroy();
+            }
+
+            unitChartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: data.map(d => d.category),
                     datasets: [{
-                        label: `${season.charAt(0).toUpperCase() + season.slice(1)} Unit Forecasts`,
+                        label: 'Forecast Units',
                         data: data.map(d => d.forecast_units),
                         backgroundColor: 'rgba(100,149,237,0.6)',
                         borderColor: 'rgba(100,149,237,1)',
@@ -198,6 +219,20 @@
                     }
                 }
             });
+
+            modal.style.display = "block";
+        }
+
+        function closeModal() {
+            document.getElementById("unitForecastModal").style.display = "none";
+        }
+
+        // Close modal if clicked outside
+        window.onclick = function(event) {
+            const modal = document.getElementById("unitForecastModal");
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
         }
 
         renderCharts();
