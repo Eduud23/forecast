@@ -100,34 +100,6 @@
       </div>
     </div>
 
-    <!-- Dry Season Future Forecast Chart -->
-    <div class="mb-4">
-      <h3 class="section-header">Dry Season Future Forecast</h3>
-      <div class="chart-wrapper">
-        <canvas id="dry-future-chart"></canvas>
-      </div>
-    </div>
-
-    <!-- Rainy Season Future Forecast Chart -->
-    <div class="mb-4">
-      <h3 class="section-header">Rainy Season Future Forecast</h3>
-      <div class="chart-wrapper">
-        <canvas id="rainy-future-chart"></canvas>
-      </div>
-    </div>
-
-    <!-- Historical Predictions -->
-    <div class="mb-4">
-      <h3 class="section-header">Historical Predictions</h3>
-      <div id="historical-predictions"></div>
-    </div>
-
-    <!-- Future Predictions -->
-    <div class="mb-4">
-      <h3 class="section-header">Future Predictions</h3>
-      <div id="future-predictions"></div>
-    </div>
-  </div>
 
   <!-- Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
@@ -147,8 +119,6 @@
         renderFuturePredictions(data.rainy_forecast_monthly, 'Rainy Season');
         renderCharts(data.dry_season_data, 'dry-season-chart', 'Dry Season');
         renderCharts(data.rainy_season_data, 'rainy-season-chart', 'Rainy Season');
-        renderCharts(data.dry_forecast_monthly, 'dry-future-chart', 'Dry Season Future');
-        renderCharts(data.rainy_forecast_monthly, 'rainy-future-chart', 'Rainy Season Future');
       } catch (error) {
         console.error('Error fetching forecast data:', error);
       }
@@ -204,51 +174,69 @@
       container.appendChild(seasonDiv);
     }
 
-    function renderCharts(data, chartId, labelPrefix) {
-      const labels = data.map(entry => entry.date);
-      const sales = data.map(entry => entry.forecast_sales || entry.sales);
-      const quantity = data.map(entry => entry.forecast_quantity || entry.quantity);
+    function renderCharts(seasonData, chartId, seasonLabel) {
+    const monthlyData = {};
 
-      const ctx = document.getElementById(chartId).getContext('2d');
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: `${labelPrefix} - Sales`,
-              data: sales,
-              borderColor: 'rgba(75, 192, 192, 1)',
-              fill: false
-            },
-            {
-              label: `${labelPrefix} - Quantity`,
-              data: quantity,
-              borderColor: 'rgba(153, 102, 255, 1)',
-              fill: false
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: 'Date'
-              }
-            },
-            y: {
-              title: {
-                display: true,
-                text: 'Amount'
-              }
-            }
-          }
+    // Group data by YYYY-MM
+    for (let i = 0; i < seasonData.dates.length; i++) {
+        const date = seasonData.dates[i];
+        const month = date.slice(0, 7); // Get "YYYY-MM"
+
+        if (!monthlyData[month]) {
+            monthlyData[month] = { sales: 0, quantity: 0 };
         }
-      });
+
+        monthlyData[month].sales += seasonData.sales[i];
+        monthlyData[month].quantity += seasonData.quantity[i];
     }
+
+    const months = Object.keys(monthlyData);
+    const sales = months.map(month => monthlyData[month].sales);
+    const quantity = months.map(month => monthlyData[month].quantity);
+
+    const ctx = document.getElementById(chartId).getContext('2d');
+    const chartData = {
+        labels: months,
+        datasets: [
+            {
+                label: `${seasonLabel} - Sales`,
+                data: sales,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                fill: false
+            },
+            {
+                label: `${seasonLabel} - Quantity`,
+                data: quantity,
+                borderColor: 'rgba(153, 102, 255, 1)',
+                fill: false
+            }
+        ]
+    };
+
+    new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Month'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Amount'
+                    }
+                }
+            }
+        }
+    });
+}
+
 
     window.onload = fetchForecastData;
   </script>
