@@ -7,7 +7,6 @@ from datetime import datetime
 from sklearn.linear_model import LinearRegression
 import firebase_admin
 from firebase_admin import credentials, firestore
-import matplotlib.pyplot as plt
 import io
 import base64
 
