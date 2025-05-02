@@ -146,10 +146,10 @@
             new Chart(document.getElementById('drySeasonSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: forecastData.dry_season_specific_data.dates, // Monthly dates
+                    labels: forecastData.dry_season_data.dates.concat(['Forecast']),
                     datasets: [{
                         label: 'Dry Season Sales',
-                        data: forecastData.dry_season_specific_data.sales, // Monthly sales data
+                        data: forecastData.dry_season_data.sales.concat(dry.forecast_sales),
                         borderColor: 'rgb(255,99,132)',
                         fill: false
                     }]
@@ -160,10 +160,10 @@
             new Chart(document.getElementById('rainySeasonSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
-                    labels: forecastData.rainy_season_specific_data.dates, // Monthly dates
+                    labels: forecastData.rainy_season_data.dates.concat(['Forecast']),
                     datasets: [{
                         label: 'Rainy Season Sales',
-                        data: forecastData.rainy_season_specific_data.sales, // Monthly sales data
+                        data: forecastData.rainy_season_data.sales.concat(rainy.forecast_sales),
                         borderColor: 'rgb(54,162,235)',
                         fill: false
                     }]
