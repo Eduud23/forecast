@@ -129,8 +129,8 @@
         renderHistoricalPredictions(data.rainy_historical_predictions, 'Rainy Season');
         renderFuturePredictions(data.dry_forecast_monthly, 'Dry Season');
         renderFuturePredictions(data.rainy_forecast_monthly, 'Rainy Season');
-        renderCharts(data.dry_season_data, 'dry-season-chart', 'Dry Season');
-        renderCharts(data.rainy_season_data, 'rainy-season-chart', 'Rainy Season');
+        renderCharts(data.dry_season_data, 'dry-season-chart', 'Dry Season', data.dry_forecast_monthly);
+        renderCharts(data.rainy_season_data, 'rainy-season-chart', 'Rainy Season', data.rainy_forecast_monthly);
       } catch (error) {
         console.error('Error fetching forecast data:', error);
       }
@@ -186,69 +186,76 @@
       container.appendChild(seasonDiv);
     }
 
-    function renderCharts(seasonData, chartId, seasonLabel) {
-    const monthlyData = {};
+    function renderCharts(seasonData, chartId, seasonLabel, futurePredictions) {
+      const monthlyData = {};
 
-    // Group data by YYYY-MM
-    for (let i = 0; i < seasonData.dates.length; i++) {
+      // Group historical data by YYYY-MM
+      for (let i = 0; i < seasonData.dates.length; i++) {
         const date = seasonData.dates[i];
-        const month = date.slice(0, 7); // Get "YYYY-MM"
-
+        const month = date.slice(0, 7);
         if (!monthlyData[month]) {
-            monthlyData[month] = { sales: 0, quantity: 0 };
+          monthlyData[month] = { sales: 0, quantity: 0 };
         }
-
         monthlyData[month].sales += seasonData.sales[i];
         monthlyData[month].quantity += seasonData.quantity[i];
-    }
+      }
 
-    const months = Object.keys(monthlyData);
-    const sales = months.map(month => monthlyData[month].sales);
-    const quantity = months.map(month => monthlyData[month].quantity);
+      // Add future prediction data by month
+      futurePredictions.forEach(pred => {
+        const month = pred.date.slice(0, 7);
+        if (!monthlyData[month]) {
+          monthlyData[month] = { sales: 0, quantity: 0 };
+        }
+        monthlyData[month].sales += pred.forecast_sales;
+        monthlyData[month].quantity += pred.forecast_quantity;
+      });
 
-    const ctx = document.getElementById(chartId).getContext('2d');
-    const chartData = {
-        labels: months,
+      const allMonths = Object.keys(monthlyData).sort();
+      const sales = allMonths.map(month => monthlyData[month].sales);
+      const quantity = allMonths.map(month => monthlyData[month].quantity);
+
+      const ctx = document.getElementById(chartId).getContext('2d');
+      const chartData = {
+        labels: allMonths,
         datasets: [
-            {
-                label: `${seasonLabel} - Sales`,
-                data: sales,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                fill: false
-            },
-            {
-                label: `${seasonLabel} - Quantity`,
-                data: quantity,
-                borderColor: 'rgba(153, 102, 255, 1)',
-                fill: false
-            }
+          {
+            label: `${seasonLabel} - Sales`,
+            data: sales,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            fill: false
+          },
+          {
+            label: `${seasonLabel} - Quantity`,
+            data: quantity,
+            borderColor: 'rgba(153, 102, 255, 1)',
+            fill: false
+          }
         ]
-    };
+      };
 
-    new Chart(ctx, {
+      new Chart(ctx, {
         type: 'line',
         data: chartData,
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Month'
-                    }
-                },
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Amount'
-                    }
-                }
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Month'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Amount'
+              }
             }
+          }
         }
-    });
-}
-
+      });
+    }
 
     window.onload = fetchForecastData;
   </script>
