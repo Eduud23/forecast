@@ -36,10 +36,10 @@ def get_sales_data():
             })
 
     df = pd.DataFrame(data)
-    df['date'] = pd.to_datetime(df['date'])
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df = df.dropna(subset=['date'])
     df = df.sort_values('date')
     df = df.resample('M', on='date').agg({'total_php': 'sum'}).reset_index()
-    df['days_since'] = (df['date'] - df['date'].min()).dt.days
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
     )
@@ -66,7 +66,7 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
         label_date = forecast_date.strftime('%Y-%m')
 
         month_df = df[df['date'].dt.month == month]
-        if len(month_df) < 2:
+        if len(month_df) == 0:
             monthly_predictions.append({
                 "date": label_date + "-01",
                 "forecast_sales": None
@@ -76,12 +76,16 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
         month_df = month_df.copy()
         base_date = month_df['date'].min()
         month_df['days_since'] = (month_df['date'] - base_date).dt.days
-        x = month_df[['days_since']].values
-        y = month_df[['total_php']].values
 
-        model = LinearRegression().fit(x, y)
-        forecast_day = (forecast_date - base_date).days
-        prediction = model.predict([[forecast_day]])[0][0] * scale_factor
+        if len(month_df) == 1:
+            # Use that single value as fallback
+            prediction = month_df['total_php'].iloc[0] * scale_factor
+        else:
+            x = month_df[['days_since']].values
+            y = month_df[['total_php']].values
+            model = LinearRegression().fit(x, y)
+            forecast_day = (forecast_date - base_date).days
+            prediction = model.predict([[forecast_day]])[0][0] * scale_factor
 
         monthly_predictions.append({
             "date": label_date + "-01",
@@ -110,8 +114,8 @@ def forecast_api():
     dry_months = [12, 1, 2, 3, 4, 5]
     rainy_months = [6, 7, 8, 9, 10, 11]
 
-    dry_result = seasonal_monthly_forecast(df, dry_months, "\ud83c\udf1e Dry Season", scale_factor=1.5)
-    rainy_result = seasonal_monthly_forecast(df, rainy_months, "\ud83c\udf27\ufe0f Rainy Season", scale_factor=1.5)
+    dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season", scale_factor=1.0)
+    rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season", scale_factor=1.0)
 
     results = {
         "forecast_data": [
@@ -151,12 +155,8 @@ def forecast_units_api():
         return jsonify({"error": "No sales unit data found."}), 400
 
     df = pd.DataFrame(data)
-
-    try:
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        df = df.dropna(subset=['date'])
-    except Exception as e:
-        return jsonify({"error": f"Date parsing failed: {str(e)}"}), 500
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df = df.dropna(subset=['date'])
 
     if df.empty:
         return jsonify({"error": "No valid sales data after date cleaning."}), 400
@@ -172,18 +172,27 @@ def forecast_units_api():
     for season in ['Dry Season', 'Rainy Season']:
         season_df = df[df['season'] == season]
         season_result = []
+
         for category in season_df['category'].unique():
             cat_df = season_df[season_df['category'] == category]
-            if len(cat_df) >= 2:
+            if len(cat_df) == 0:
+                continue
+
+            cat_df = cat_df.copy()
+            if len(cat_df) == 1:
+                forecast_units = cat_df['quantity'].iloc[0]
+            else:
                 x = cat_df[['days_since']].values
                 y = cat_df[['quantity']].values
                 model = LinearRegression().fit(x, y)
                 forecast_day = cat_df['days_since'].max() + 30
-                predicted_units = model.predict([[forecast_day]])[0][0]
-                season_result.append({
-                    "category": category,
-                    "forecast_units": round(predicted_units, 2)
-                })
+                forecast_units = model.predict([[forecast_day]])[0][0]
+
+            season_result.append({
+                "category": category,
+                "forecast_units": round(forecast_units, 2)
+            })
+
         results[season] = season_result
 
     return jsonify(results)
