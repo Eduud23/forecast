@@ -89,13 +89,19 @@
 <body>
     <div class="container">
         <h3>Dry Season Sales Forecast (December to May)</h3>
+        <p><em>This forecast is for the <strong>next Dry Season</strong>.</em></p>
         <canvas id="drySeasonSalesChart"></canvas>
-        <p class="forecast-text" id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
+        <p class="forecast-text" id="drySeasonForecast">
+            Dry Season Forecast Sales (Next Season): <span></span>
+        </p>
         <button onclick="showModal('dry')">Show Dry Season Unit Forecast</button>
 
         <h3>Rainy Season Sales Forecast (June to November)</h3>
+        <p><em>This forecast is for the <strong>next Rainy Season</strong>.</em></p>
         <canvas id="rainySeasonSalesChart"></canvas>
-        <p class="forecast-text" id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
+        <p class="forecast-text" id="rainySeasonForecast">
+            Rainy Season Forecast Sales (Next Season): <span></span>
+        </p>
         <button onclick="showModal('rainy')">Show Rainy Season Unit Forecast</button>
     </div>
 
@@ -181,10 +187,10 @@
 
             if (season === 'dry') {
                 data = forecastUnitsData["Dry Season"];
-                title.textContent = "Dry Season Unit Forecast";
+                title.textContent = "Dry Season Unit Forecast (Next Season)";
             } else if (season === 'rainy') {
                 data = forecastUnitsData["Rainy Season"];
-                title.textContent = "Rainy Season Unit Forecast";
+                title.textContent = "Rainy Season Unit Forecast (Next Season)";
             }
 
             if (unitChartInstance) {
@@ -196,7 +202,7 @@
                 data: {
                     labels: data.map(d => d.category),
                     datasets: [{
-                        label: 'Forecast Units',
+                        label: 'Forecast Units (Next Season)',
                         data: data.map(d => d.forecast_units),
                         backgroundColor: 'rgba(100,149,237,0.6)',
                         borderColor: 'rgba(100,149,237,1)',
@@ -220,7 +226,6 @@
             document.getElementById("unitForecastModal").style.display = "none";
         }
 
-        // Close modal if clicked outside
         window.onclick = function(event) {
             const modal = document.getElementById("unitForecastModal");
             if (event.target === modal) {
@@ -228,7 +233,6 @@
             }
         }
 
-        // Close modal with Escape key
         window.addEventListener('keydown', function(event) {
             if (event.key === "Escape") {
                 closeModal();
