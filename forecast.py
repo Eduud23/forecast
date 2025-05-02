@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from sklearn.linear_model import LinearRegression
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -45,19 +45,19 @@ def get_sales_data():
     )
     return df
 
-def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
+def generate_forecast_dates(months, num_years=1):
+    forecast_dates = []
     today = datetime.today()
-    year = today.year
+    current_year = today.year
+    for y in range(num_years):
+        for m in months:
+            forecast_date = datetime(current_year + y, m, 1)
+            if forecast_date > today:
+                forecast_dates.append(forecast_date)
+    return forecast_dates
 
-    if months[0] == 12:
-        start_year = year if today.month < 12 else year + 1
-        forecast_dates = [datetime(start_year, 12, 1)]
-        for m in [1, 2, 3, 4, 5]:
-            forecast_dates.append(datetime(start_year + 1, m, 1))
-    else:
-        start_year = year if today.month < 6 else year + 1
-        forecast_dates = [datetime(start_year, m, 1) for m in months]
-
+def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
+    forecast_dates = generate_forecast_dates(months, num_years=2)
     monthly_predictions = []
     total = 0
 

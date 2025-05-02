@@ -158,19 +158,31 @@
 
       // === Historical Charts ===
       new Chart(document.getElementById('drySeasonHistoricalChart').getContext('2d'), {
-    type: 'line',
-    data: {
-        labels: forecastData.dry_season_data.dates,  // Use historical dates here
-        datasets: [{
-            label: 'Dry Season Historical Sales',
-            data: forecastData.dry_season_data.sales,  // Use historical sales here
-            borderColor: 'rgb(255,99,132)',
-            backgroundColor: 'rgba(255,99,132,0.2)',
-            fill: true,
-            tension: 0.3
-        }]
-    }
-});
+        type: 'line',
+        data: {
+            labels: forecastData.dry_season_data.dates.concat(forecastData.dry_forecast_monthly.map(d => d.date)),
+            datasets: [
+            {
+                label: 'Dry Season Historical Sales',
+                data: forecastData.dry_season_data.sales,
+                borderColor: 'rgb(255,99,132)',
+                backgroundColor: 'rgba(255,99,132,0.2)',
+                fill: true,
+                tension: 0.3
+            },
+            {
+                label: 'Dry Season Predicted Sales',
+                data: forecastData.dry_forecast_monthly.map(d => d.forecast_sales),
+                borderColor: 'rgb(255,165,0)',
+                backgroundColor: 'rgba(255,165,0,0.2)',
+                fill: true,
+                tension: 0.3,
+                borderDash: [5, 5]
+            }
+            ]
+        }
+        });
+
 
       new Chart(document.getElementById('rainySeasonHistoricalChart').getContext('2d'), {
         type: 'line',
