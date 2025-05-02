@@ -56,9 +56,14 @@ def get_sales_data():
     # Create DataFrame from the gathered data
     df = pd.DataFrame(data)
 
-    # Check for missing columns
+    # Ensure that the 'date' column is of datetime type
     if 'date' not in df.columns:
         raise KeyError("'date' column is missing in the data")
+
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+
+    # Remove rows with invalid dates
+    df = df.dropna(subset=['date'])
 
     # Aggregate by month
     df['month'] = df['date'].dt.to_period('M')
