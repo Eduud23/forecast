@@ -135,6 +135,7 @@
             document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
             document.getElementById('nextMonthForecast').children[0].textContent = `${next.forecast_sales} (${next.trend})`;
 
+            // Dry Season Sales Chart
             new Chart(document.getElementById('drySeasonSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
@@ -148,6 +149,7 @@
                 }
             });
 
+            // Rainy Season Sales Chart
             new Chart(document.getElementById('rainySeasonSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
@@ -161,6 +163,7 @@
                 }
             });
 
+            // Next Month Sales Chart
             new Chart(document.getElementById('nextMonthSalesChart').getContext('2d'), {
                 type: 'line',
                 data: {
