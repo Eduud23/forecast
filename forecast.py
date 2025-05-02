@@ -82,56 +82,68 @@ def forecast_api():
     rainy_months = [6, 7, 8, 9, 10, 11]
 
     def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
-        current_year = datetime.now().year
-        start_month = months[0]
-        forecast_year = current_year if start_month >= datetime.now().month else current_year + 1
+    today = datetime.today()
+    year = today.year
 
-        monthly_predictions = []
-        total = 0
+    # Determine upcoming season year boundaries
+    if months[0] == 12:
+        # Dry season (Dec–May): starts Dec this year if today is before Dec, else next year
+        start_year = year if today.month < 12 else year + 1
+        forecast_dates = [datetime(start_year, 12, 1)]
+        for m in [1, 2, 3, 4, 5]:
+            forecast_dates.append(datetime(start_year + 1, m, 1))
+    else:
+        # Rainy season (Jun–Nov): starts Jun this year if today < Jun, else next year
+        start_year = year if today.month < 6 else year + 1
+        forecast_dates = [datetime(start_year, m, 1) for m in months]
 
-        for i, month in enumerate(months):
-            target_month = (month if month >= 1 else month + 12)
-            target_year = forecast_year if month >= datetime.now().month else forecast_year + 1
-            target_label = datetime(target_year, target_month, 1).strftime('%Y-%m')
+    monthly_predictions = []
+    total = 0
 
-            # Filter historical data for this specific month (e.g., all previous March values)
-            month_df = df[df['date'].dt.month == month]
-            if len(month_df) < 2:
-                monthly_predictions.append({
-                    "date": target_label + "-01",
-                    "forecast_sales": None
-                })
-                continue
+    for forecast_date in forecast_dates:
+        month = forecast_date.month
+        label_date = forecast_date.strftime('%Y-%m')
 
-            month_df = month_df.copy()
-            month_df['days_since'] = (month_df['date'] - month_df['date'].min()).dt.days
-            x = month_df[['days_since']].values
-            y = month_df[['total_php']].values
-
-            model = LinearRegression().fit(x, y)
-            forecast_day = month_df['days_since'].max() + 30
-            prediction = model.predict([[forecast_day]])[0][0] * scale_factor
-
+        # Historical data for that same month
+        month_df = df[df['date'].dt.month == month]
+        if len(month_df) < 2:
             monthly_predictions.append({
-                "date": target_label + "-01",
-                "forecast_sales": round(prediction, 2)
+                "date": label_date + "-01",
+                "forecast_sales": None
             })
+            continue
 
-            total += prediction
+        # Prepare regression data
+        month_df = month_df.copy()
+        base_date = month_df['date'].min()
+        month_df['days_since'] = (month_df['date'] - base_date).dt.days
+        x = month_df[['days_since']].values
+        y = month_df[['total_php']].values
 
-        # Compare last month of same type for trend
-        last_values = df[df['date'].dt.month.isin(months)].sort_values('date')['total_php'].values
-        last_actual = last_values[-1] if len(last_values) > 0 else 0
-        trend = "Increasing" if total > last_actual else "Decreasing" if total < last_actual else "Flat"
+        model = LinearRegression().fit(x, y)
 
-        return {
-            "summary": {
-                "label": label,
-                "forecast_sales": round(total, 2),
-                "trend": trend
-            },
-            "monthly": monthly_predictions
-        }
+        forecast_day = (forecast_date - base_date).days
+        prediction = model.predict([[forecast_day]])[0][0] * scale_factor
+
+        monthly_predictions.append({
+            "date": label_date + "-01",
+            "forecast_sales": round(prediction, 2)
+        })
+
+        total += prediction
+
+    last_values = df[df['date'].dt.month.isin(months)].sort_values('date')['total_php'].values
+    last_actual = last_values[-1] if len(last_values) > 0 else 0
+    trend = "Increasing" if total > last_actual else "Decreasing" if total < last_actual else "Flat"
+
+    return {
+        "summary": {
+            "label": label,
+            "forecast_sales": round(total, 2),
+            "trend": trend
+        },
+        "monthly": monthly_predictions
+    }
 
     dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season", scale_factor=1.5)
     rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season", scale_factor=1.5)
