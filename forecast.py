@@ -45,32 +45,6 @@ def get_sales_data():
     )
     return df
 
-def forecast(df_subset, label, months_ahead=6, scale_factor=1.0):
-    if df_subset.empty or len(df_subset) < 2:
-        return { "label": label, "error": "Not enough data." }
-
-    x = df_subset[['days_since']].values
-    y = df_subset[['total_php']].values
-    model = LinearRegression().fit(x, y)
-
-    forecast_day_start = df_subset['days_since'].max()
-    forecast_total = 0
-
-    for i in range(1, months_ahead + 1):
-        forecast_day = forecast_day_start + (30 * i)
-        monthly_prediction = model.predict([[forecast_day]])[0][0]
-        forecast_total += monthly_prediction
-
-    predicted = forecast_total * scale_factor
-    last_actual = y[-1][0]
-    trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
-
-    return {
-        "label": label,
-        "forecast_sales": round(predicted, 2),
-        "trend": trend
-    }
-
 def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
     today = datetime.today()
     year = today.year
@@ -136,8 +110,8 @@ def forecast_api():
     dry_months = [12, 1, 2, 3, 4, 5]
     rainy_months = [6, 7, 8, 9, 10, 11]
 
-    dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season", scale_factor=1.5)
-    rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season", scale_factor=1.5)
+    dry_result = seasonal_monthly_forecast(df, dry_months, "\ud83c\udf1e Dry Season", scale_factor=1.5)
+    rainy_result = seasonal_monthly_forecast(df, rainy_months, "\ud83c\udf27\ufe0f Rainy Season", scale_factor=1.5)
 
     results = {
         "forecast_data": [
