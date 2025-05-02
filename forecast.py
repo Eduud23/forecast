@@ -7,8 +7,6 @@ from datetime import datetime
 from sklearn.linear_model import LinearRegression
 import firebase_admin
 from firebase_admin import credentials, firestore
-import io
-import base64
 
 app = Flask(__name__)
 CORS(app)
@@ -41,31 +39,27 @@ def get_sales_data():
 
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'])
-    df = df.sort_values('date')
     
     # Aggregate by month
-    df['year_month'] = df['date'].dt.to_period('M')
-    df = df.groupby(['year_month', 'category']).agg({'total_php': 'sum', 'quantity': 'sum'}).reset_index()
-    
+    df['month'] = df['date'].dt.to_period('M')
+    df = df.groupby(['month', 'category']).agg({'total_php': 'sum', 'quantity': 'sum'}).reset_index()
+
     # Add season column (Dry or Rainy)
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
     )
-
     return df
 
 def forecast(df_subset, label, forecast_months=6):
     if df_subset.empty or len(df_subset) < 2:
         return {"label": label, "error": "Not enough data."}
 
-    # Use months as the x-axis for linear regression
-    df_subset['month_since'] = (df_subset['year_month'].dt.month - df_subset['year_month'].min().month) + 1
-    x = df_subset[['month_since']].values
+    x = df_subset[['month']].values.astype(float)
     y = df_subset[['total_php']].values
     model = LinearRegression().fit(x, y)
 
-    # Forecast for the next 6 months (approximately)
-    forecast_month = df_subset['month_since'].max() + forecast_months
+    # Forecast for the next 6 months (approximately 180 days)
+    forecast_month = df_subset['month'].max().month + forecast_months
     predicted = model.predict([[forecast_month]])[0][0]
 
     last_actual = y[-1][0]
@@ -91,7 +85,7 @@ def forecast_api():
 
     results = {
         "historical_data": {
-            "dates": df['year_month'].dt.strftime('%Y-%m').tolist(),
+            "dates": df['month'].dt.strftime('%Y-%m').tolist(),
             "categories": df['category'].tolist(),
             "quantities": df['quantity'].tolist(),
             "totals": df['total_php'].tolist()
@@ -101,13 +95,13 @@ def forecast_api():
             rainy_forecast
         ],
         "dry_season_specific_data": {
-            "dates": dry_df['year_month'].dt.strftime('%Y-%m').tolist(),
+            "dates": dry_df['month'].dt.strftime('%Y-%m').tolist(),
             "categories": dry_df['category'].tolist(),
             "quantities": dry_df['quantity'].tolist(),
             "totals": dry_df['total_php'].tolist()
         },
         "rainy_season_specific_data": {
-            "dates": rainy_df['year_month'].dt.strftime('%Y-%m').tolist(),
+            "dates": rainy_df['month'].dt.strftime('%Y-%m').tolist(),
             "categories": rainy_df['category'].tolist(),
             "quantities": rainy_df['quantity'].tolist(),
             "totals": rainy_df['total_php'].tolist()
@@ -116,48 +110,22 @@ def forecast_api():
 
     return jsonify(results)
 
-@app.route('/forecast_category_trends', methods=['GET'])
-def forecast_category_trends():
-    season = request.args.get('season', default='Dry Season')
+@app.route('/category_trends/<season>', methods=['GET'])
+def category_trends(season):
     df = get_sales_data()
-
-    # Filter data by season
     df_season = df[df['season'] == season]
 
-    # Create a trend for each category
     trends = []
     for category in df_season['category'].unique():
         cat_df = df_season[df_season['category'] == category]
-        cat_forecast = forecast(cat_df, f"Trend for {category} in {season}")
-        trends.append(cat_forecast)
+        category_trend = {
+            'category': category,
+            'total_php': cat_df.groupby('month')['total_php'].sum().tolist(),
+            'dates': cat_df['month'].dt.strftime('%Y-%m').unique().tolist()
+        }
+        trends.append(category_trend)
 
-    return jsonify({"trends": trends})
-
-@app.route('/chart/<season>', methods=['GET'])
-def show_chart(season):
-    df = get_sales_data()
-    season_data = df[df['season'] == season]
-
-    # Create a plot for category trends
-    plt.figure(figsize=(10, 6))
-    for category in season_data['category'].unique():
-        category_data = season_data[season_data['category'] == category]
-        plt.plot(category_data['year_month'].astype(str), category_data['total_php'], label=category)
-
-    plt.title(f"Sales Trends for {season}")
-    plt.xlabel("Month")
-    plt.ylabel("Total Sales (PHP)")
-    plt.xticks(rotation=45)
-    plt.legend()
-
-    # Save the plot to a string buffer
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    buf.seek(0)
-    image_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
-    buf.close()
-
-    return render_template("chart.html", chart=image_base64)
+    return jsonify(trends)
 
 @app.route('/')
 def index():
