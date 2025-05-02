@@ -8,6 +8,57 @@
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        .card {
+            margin-bottom: 20px;
+        }
+
+        h1, h3 {
+            color: #333;
+        }
+
+        .forecast-summary-card {
+            background-color: #e9ecef;
+            border-left: 5px solid #007bff;
+        }
+
+        .forecast-summary-card h5 {
+            color: #007bff;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            margin-bottom: 20px;
+        }
+
+        .prediction-entry {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #f1f1f1;
+            border-radius: 8px;
+        }
+
+        .prediction-entry strong {
+            color: #333;
+        }
+
+        .prediction-entry p {
+            margin: 5px 0;
+        }
+    </style>
 </head>
 
 <body>
@@ -16,7 +67,7 @@
 
         <!-- Forecast Data -->
         <div id="forecast-container" class="mb-4">
-            <h3>Forecast Summary</h3>
+            <h3 class="section-header">Forecast Summary</h3>
             <div id="forecast-summary" class="row">
                 <!-- Dynamic Forecast summary will be injected here -->
             </div>
@@ -24,25 +75,29 @@
 
         <!-- Dry Season Data -->
         <div id="dry-season-container" class="mb-4">
-            <h3>Dry Season Data</h3>
-            <canvas id="dry-season-chart"></canvas>
+            <h3 class="section-header">Dry Season Data</h3>
+            <div class="chart-container">
+                <canvas id="dry-season-chart"></canvas>
+            </div>
         </div>
 
         <!-- Rainy Season Data -->
         <div id="rainy-season-container" class="mb-4">
-            <h3>Rainy Season Data</h3>
-            <canvas id="rainy-season-chart"></canvas>
+            <h3 class="section-header">Rainy Season Data</h3>
+            <div class="chart-container">
+                <canvas id="rainy-season-chart"></canvas>
+            </div>
         </div>
 
         <!-- Historical Predictions -->
         <div id="historical-predictions-container" class="mb-4">
-            <h3>Historical Predictions</h3>
+            <h3 class="section-header">Historical Predictions</h3>
             <div id="historical-predictions"></div>
         </div>
 
         <!-- Future Predictions -->
         <div id="future-predictions-container" class="mb-4">
-            <h3>Future Predictions</h3>
+            <h3 class="section-header">Future Predictions</h3>
             <div id="future-predictions"></div>
         </div>
     </div>
@@ -84,6 +139,7 @@
             forecastData.forEach(forecast => {
                 const div = document.createElement('div');
                 div.classList.add('col-md-6', 'mb-3');
+                div.classList.add('forecast-summary-card');
                 div.innerHTML = `
                     <div class="card">
                         <div class="card-body">
@@ -106,7 +162,7 @@
             seasonDiv.innerHTML = `<h5>${season} Historical Predictions</h5>`;
             predictions.forEach(prediction => {
                 const div = document.createElement('div');
-                div.classList.add('mb-2');
+                div.classList.add('prediction-entry');
                 div.innerHTML = `
                     <strong>Date:</strong> ${prediction.date}
                     <br>
@@ -126,7 +182,7 @@
             seasonDiv.innerHTML = `<h5>${season} Future Predictions</h5>`;
             predictions.forEach(prediction => {
                 const div = document.createElement('div');
-                div.classList.add('mb-2');
+                div.classList.add('prediction-entry');
                 div.innerHTML = `
                     <strong>Date:</strong> ${prediction.date}
                     <br>
@@ -164,25 +220,24 @@
                 type: 'line',
                 data: chartData,
                 options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Date'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Amount'
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Amount'
+                            }
                         }
                     }
                 }
-            }
-
-                });
+            });
         }
 
         // Load data on page load
