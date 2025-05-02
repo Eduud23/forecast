@@ -166,51 +166,50 @@ def forecast_units_api():
     results = {}
 
     for season in ['Dry Season', 'Rainy Season']:
-    season_df = df[df['season'] == season]
-    season_result = []
+        season_df = df[df['season'] == season]
+        season_result = []
 
-    for category in season_df['category'].unique():
-        cat_df = season_df[season_df['category'] == category]
-        cat_df = cat_df.copy()
-        cat_df['days_since'] = (cat_df['date'] - cat_df['date'].min()).dt.days
-        x = cat_df[['days_since']].values
-        y_quantity = cat_df[['quantity']].values
-        y_sales = cat_df[['total_php']].values
-        model_quantity = LinearRegression().fit(x, y_quantity)
-        model_sales = LinearRegression().fit(x, y_sales)
+        for category in season_df['category'].unique():
+            cat_df = season_df[season_df['category'] == category]
+            cat_df = cat_df.copy()
+            cat_df['days_since'] = (cat_df['date'] - cat_df['date'].min()).dt.days
+            x = cat_df[['days_since']].values
+            y_quantity = cat_df[['quantity']].values
+            y_sales = cat_df[['total_php']].values
+            model_quantity = LinearRegression().fit(x, y_quantity)
+            model_sales = LinearRegression().fit(x, y_sales)
 
-        # Forecast for next 12 months
-        last_date = cat_df['date'].max()
-        forecast_months = []
-        current = last_date.replace(day=1)
+            # Forecast for next 12 months
+            last_date = cat_df['date'].max()
+            forecast_months = []
+            current = last_date.replace(day=1)
 
-        while len(forecast_months) < 12:
-            current = current + pd.DateOffset(months=1)
-            if current.month in [12, 1, 2, 3, 4, 5]:  # Adjust for the relevant months
-                forecast_months.append(current)
+            while len(forecast_months) < 12:
+                current = current + pd.DateOffset(months=1)
+                if current.month in [12, 1, 2, 3, 4, 5]:  # Adjust for the relevant months
+                    forecast_months.append(current)
 
-        category_result = []
-        total_quantity = 0
-        total_sales = 0
+            category_result = []
+            total_quantity = 0
+            total_sales = 0
 
-        for forecast_date in forecast_months:
-            days_since = (forecast_date - cat_df['date'].min()).days
-            forecast_quantity = model_quantity.predict([[days_since]])[0][0]
-            forecast_sales = model_sales.predict([[days_since]])[0][0]
+            for forecast_date in forecast_months:
+                days_since = (forecast_date - cat_df['date'].min()).days
+                forecast_quantity = model_quantity.predict([[days_since]])[0][0]
+                forecast_sales = model_sales.predict([[days_since]])[0][0]
 
-            forecast_quantity = max(0, forecast_quantity)
-            forecast_sales = max(0, forecast_sales)
+                forecast_quantity = max(0, forecast_quantity)
+                forecast_sales = max(0, forecast_sales)
 
-            category_result.append({
-                "category": category,
-                "forecast_quantity": round(forecast_quantity, 2),
-                "forecast_sales": round(forecast_sales, 2)
-            })
-            total_quantity += forecast_quantity
-            total_sales += forecast_sales
+                category_result.append({
+                    "category": category,
+                    "forecast_quantity": round(forecast_quantity, 2),
+                    "forecast_sales": round(forecast_sales, 2)
+                })
+                total_quantity += forecast_quantity
+                total_sales += forecast_sales
 
-        results[season] = category_result
-
+            results[season] = category_result
 
     return jsonify(results)
 
