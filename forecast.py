@@ -45,7 +45,7 @@ def get_sales_data():
     )
     return df
 
-def forecast(df_subset, label, scale_factor=1.0, forecast_days=30):
+def forecast(df_subset, label, scale_factor=1.0, forecast_months=6):
     if df_subset.empty or len(df_subset) < 2:
         return { "label": label, "error": "Not enough data." }
 
@@ -53,8 +53,9 @@ def forecast(df_subset, label, scale_factor=1.0, forecast_days=30):
     y = df_subset[['total_php']].values
     model = LinearRegression().fit(x, y)
 
-    forecast_day = df_subset['days_since'].max() + forecast_days
-    predicted = model.predict([[forecast_day]])[0][0] * scale_factor
+    # Forecast for the next 6 months (approximately 180 days)
+    forecast_days = df_subset['days_since'].max() + (forecast_months * 30)  # 30 days per month
+    predicted = model.predict([[forecast_days]])[0][0] * scale_factor
 
     last_actual = y[-1][0]
     trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
@@ -70,32 +71,32 @@ def forecast(df_subset, label, scale_factor=1.0, forecast_days=30):
 def forecast_api():
     df = get_sales_data()
 
-    # Forecast for the Dry and Rainy seasons dynamically
+    # Forecast for the Dry and Rainy seasons dynamically for the next 6 months
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
-    # Adjust for future period (forecast next 30 days for both seasons)
-    dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5, forecast_days=30)
-    rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5, forecast_days=30)
+    # Forecast for the Dry and Rainy seasons (next 6 months)
+    dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5, forecast_months=6)
+    rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5, forecast_months=6)
 
-    # Next Month Forecast (Sales)
+    # Next Season Forecast (Sales) - Adjusting for 6 months ahead
     today = datetime.today()
-    next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
-    next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
+    next_season_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
+    next_season_end = (next_season_start + pd.offsets.DateOffset(months=6)).to_pydatetime()
 
-    forecast_day = (next_month_start - df['date'].min()).days
+    forecast_days = (next_season_start - df['date'].min()).days + (6 * 30)  # Forecast for 6 months ahead
     model = LinearRegression().fit(df[['days_since']], df[['total_php']])
-    predicted = model.predict([[forecast_day]])[0][0]
+    predicted = model.predict([[forecast_days]])[0][0]
     last_actual = df['total_php'].iloc[-1]
     trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
 
-    next_month_forecast = {
-        "label": "📅 Next Month",
+    next_season_forecast = {
+        "label": "📅 Next Season",
         "forecast_sales": round(predicted, 2),
         "trend": trend,
         "forecast_range": {
-            "start_date": next_month_start.strftime("%Y-%m-%d"),
-            "end_date": next_month_end.strftime("%Y-%m-%d")
+            "start_date": next_season_start.strftime("%Y-%m-%d"),
+            "end_date": next_season_end.strftime("%Y-%m-%d")
         }
     }
 
@@ -107,7 +108,7 @@ def forecast_api():
         "forecast_data": [
             dry_forecast,
             rainy_forecast,
-            next_month_forecast
+            next_season_forecast
         ],
         "dry_season_specific_data": {
             "dates": dry_df['date'].dt.strftime('%Y-%m-%d').tolist(),
@@ -168,7 +169,7 @@ def forecast_units_api():
                 x = cat_df[['days_since']].values
                 y = cat_df[['quantity']].values
                 model = LinearRegression().fit(x, y)
-                forecast_day = cat_df['days_since'].max() + 30
+                forecast_day = cat_df['days_since'].max() + (6 * 30)  # 6 months ahead
                 predicted_units = model.predict([[forecast_day]])[0][0]
                 season_result.append({
                     "category": category,
@@ -176,13 +177,13 @@ def forecast_units_api():
                 })
         results[season] = season_result
 
-    # === Next Month Forecast (Units) ===
+    # === Next Season Forecast (Units) ===
     today = datetime.today()
-    next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
-    next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
+    next_season_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
+    next_season_end = (next_season_start + pd.offsets.DateOffset(months=6)).to_pydatetime()
 
-    forecast_day = (next_month_start - df['date'].min()).days
-    next_month_results = []
+    forecast_day = (next_season_start - df['date'].min()).days + (6 * 30)  # Forecast for 6 months ahead
+    next_season_results = []
 
     for category in df['category'].unique():
         cat_df = df[df['category'] == category]
@@ -191,16 +192,16 @@ def forecast_units_api():
             y = cat_df[['quantity']].values
             model = LinearRegression().fit(x, y)
             predicted_units = model.predict([[forecast_day]])[0][0]
-            next_month_results.append({
+            next_season_results.append({
                 "category": category,
                 "forecast_units": round(predicted_units, 2)
             })
 
-    results["Next Month Forecast Range"] = {
-        "start_date": next_month_start.strftime("%Y-%m-%d"),
-        "end_date": next_month_end.strftime("%Y-%m-%d")
+    results["Next Season Forecast Range"] = {
+        "start_date": next_season_start.strftime("%Y-%m-%d"),
+        "end_date": next_season_end.strftime("%Y-%m-%d")
     }
-    results["Next Month"] = next_month_results
+    results["Next Season"] = next_season_results
 
     return jsonify(results)
 
