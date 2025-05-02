@@ -29,17 +29,37 @@ def get_sales_data():
 
     for doc in docs:
         entry = doc.to_dict()
-        if 'date' in entry and 'quantity' in entry and 'category' in entry and 'total_php' in entry:
-            data.append({
-                'date': entry['date'],
-                'category': entry['category'],
-                'quantity': entry['quantity'],
-                'total_php': entry['total_php']
-            })
 
+        # Check if 'date' field exists and is valid
+        if 'date' in entry and isinstance(entry['date'], str):
+            try:
+                # Convert the date string to a datetime object (format: "YYYY-MM-DD")
+                entry['date'] = pd.to_datetime(entry['date'], format='%Y-%m-%d', errors='coerce')
+
+                # Only append valid dates
+                if pd.notna(entry['date']):
+                    data.append({
+                        'date': entry['date'],
+                        'category': entry['category'],
+                        'quantity': entry['quantity'],
+                        'total_php': entry['total_php']
+                    })
+            except Exception as e:
+                print(f"Error converting date for document {doc.id}: {e}")
+        else:
+            print(f"Missing or invalid date in document {doc.id}")
+
+    # Check if any valid data is found
+    if not data:
+        raise ValueError("No valid sales data found in Firestore.")
+
+    # Create DataFrame from the gathered data
     df = pd.DataFrame(data)
-    df['date'] = pd.to_datetime(df['date'])
-    
+
+    # Check for missing columns
+    if 'date' not in df.columns:
+        raise KeyError("'date' column is missing in the data")
+
     # Aggregate by month
     df['month'] = df['date'].dt.to_period('M')
     df = df.groupby(['month', 'category']).agg({'total_php': 'sum', 'quantity': 'sum'}).reset_index()
@@ -48,18 +68,23 @@ def get_sales_data():
     df['season'] = df['date'].dt.month.apply(
         lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
     )
+
     return df
 
 def forecast(df_subset, label, forecast_months=6):
     if df_subset.empty or len(df_subset) < 2:
         return {"label": label, "error": "Not enough data."}
 
-    x = df_subset[['month']].values.astype(float)
+    # Convert month periods to numeric values for regression
+    df_subset['month_numeric'] = df_subset['month'].dt.month
+    x = df_subset[['month_numeric']].values
     y = df_subset[['total_php']].values
+
+    # Train the linear regression model
     model = LinearRegression().fit(x, y)
 
     # Forecast for the next 6 months (approximately 180 days)
-    forecast_month = df_subset['month'].max().month + forecast_months
+    forecast_month = df_subset['month_numeric'].max() + forecast_months
     predicted = model.predict([[forecast_month]])[0][0]
 
     last_actual = y[-1][0]
@@ -74,58 +99,64 @@ def forecast(df_subset, label, forecast_months=6):
 # === API ROUTES ===
 @app.route('/forecast', methods=['GET'])
 def forecast_api():
-    df = get_sales_data()
+    try:
+        df = get_sales_data()
 
-    # Forecast for the Dry and Rainy seasons dynamically for the next 6 months
-    dry_df = df[df['season'] == "Dry Season"]
-    rainy_df = df[df['season'] == "Rainy Season"]
+        # Forecast for the Dry and Rainy seasons dynamically for the next 6 months
+        dry_df = df[df['season'] == "Dry Season"]
+        rainy_df = df[df['season'] == "Rainy Season"]
 
-    dry_forecast = forecast(dry_df, "🌞 Dry Season", forecast_months=6)
-    rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", forecast_months=6)
+        dry_forecast = forecast(dry_df, "🌞 Dry Season", forecast_months=6)
+        rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", forecast_months=6)
 
-    results = {
-        "historical_data": {
-            "dates": df['month'].dt.strftime('%Y-%m').tolist(),
-            "categories": df['category'].tolist(),
-            "quantities": df['quantity'].tolist(),
-            "totals": df['total_php'].tolist()
-        },
-        "forecast_data": [
-            dry_forecast,
-            rainy_forecast
-        ],
-        "dry_season_specific_data": {
-            "dates": dry_df['month'].dt.strftime('%Y-%m').tolist(),
-            "categories": dry_df['category'].tolist(),
-            "quantities": dry_df['quantity'].tolist(),
-            "totals": dry_df['total_php'].tolist()
-        },
-        "rainy_season_specific_data": {
-            "dates": rainy_df['month'].dt.strftime('%Y-%m').tolist(),
-            "categories": rainy_df['category'].tolist(),
-            "quantities": rainy_df['quantity'].tolist(),
-            "totals": rainy_df['total_php'].tolist()
+        results = {
+            "historical_data": {
+                "dates": df['month'].dt.strftime('%Y-%m').tolist(),
+                "categories": df['category'].tolist(),
+                "quantities": df['quantity'].tolist(),
+                "totals": df['total_php'].tolist()
+            },
+            "forecast_data": [
+                dry_forecast,
+                rainy_forecast
+            ],
+            "dry_season_specific_data": {
+                "dates": dry_df['month'].dt.strftime('%Y-%m').tolist(),
+                "categories": dry_df['category'].tolist(),
+                "quantities": dry_df['quantity'].tolist(),
+                "totals": dry_df['total_php'].tolist()
+            },
+            "rainy_season_specific_data": {
+                "dates": rainy_df['month'].dt.strftime('%Y-%m').tolist(),
+                "categories": rainy_df['category'].tolist(),
+                "quantities": rainy_df['quantity'].tolist(),
+                "totals": rainy_df['total_php'].tolist()
+            }
         }
-    }
 
-    return jsonify(results)
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/category_trends/<season>', methods=['GET'])
 def category_trends(season):
-    df = get_sales_data()
-    df_season = df[df['season'] == season]
+    try:
+        df = get_sales_data()
+        df_season = df[df['season'] == season]
 
-    trends = []
-    for category in df_season['category'].unique():
-        cat_df = df_season[df_season['category'] == category]
-        category_trend = {
-            'category': category,
-            'total_php': cat_df.groupby('month')['total_php'].sum().tolist(),
-            'dates': cat_df['month'].dt.strftime('%Y-%m').unique().tolist()
-        }
-        trends.append(category_trend)
+        trends = []
+        for category in df_season['category'].unique():
+            cat_df = df_season[df_season['category'] == category]
+            category_trend = {
+                'category': category,
+                'total_php': cat_df.groupby('month')['total_php'].sum().tolist(),
+                'dates': cat_df['month'].dt.strftime('%Y-%m').unique().tolist()
+            }
+            trends.append(category_trend)
 
-    return jsonify(trends)
+        return jsonify(trends)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def index():
