@@ -78,55 +78,83 @@ def forecast(df_subset, label, months_ahead=6, scale_factor=1.0):
 def forecast_api():
     df = get_sales_data()
 
-    dry_df = df[df['season'] == "Dry Season"]
-    rainy_df = df[df['season'] == "Rainy Season"]
+    dry_months = [12, 1, 2, 3, 4, 5]
+    rainy_months = [6, 7, 8, 9, 10, 11]
 
-    dry_summary = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5)
-    rainy_summary = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5)
+    def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
+        current_year = datetime.now().year
+        start_month = months[0]
+        forecast_year = current_year if start_month >= datetime.now().month else current_year + 1
 
-    def monthly_predictions(df_subset, months_ahead=6, scale_factor=1.0):
-        if df_subset.empty or len(df_subset) < 2:
-            return []
+        monthly_predictions = []
+        total = 0
 
-        x = df_subset[['days_since']].values
-        y = df_subset[['total_php']].values
-        model = LinearRegression().fit(x, y)
+        for i, month in enumerate(months):
+            target_month = (month if month >= 1 else month + 12)
+            target_year = forecast_year if month >= datetime.now().month else forecast_year + 1
+            target_label = datetime(target_year, target_month, 1).strftime('%Y-%m')
 
-        forecast_day_start = df_subset['days_since'].max()
-        forecast_date_start = df_subset['date'].max()
+            # Filter historical data for this specific month (e.g., all previous March values)
+            month_df = df[df['date'].dt.month == month]
+            if len(month_df) < 2:
+                monthly_predictions.append({
+                    "date": target_label + "-01",
+                    "forecast_sales": None
+                })
+                continue
 
-        predictions = []
-        for i in range(1, months_ahead + 1):
-            forecast_day = forecast_day_start + (30 * i)
-            forecast_date = forecast_date_start + pd.DateOffset(months=i)
-            monthly_prediction = model.predict([[forecast_day]])[0][0] * scale_factor
-            predictions.append({
-                "date": forecast_date.strftime('%Y-%m-%d'),
-                "forecast_sales": round(monthly_prediction, 2)
+            month_df = month_df.copy()
+            month_df['days_since'] = (month_df['date'] - month_df['date'].min()).dt.days
+            x = month_df[['days_since']].values
+            y = month_df[['total_php']].values
+
+            model = LinearRegression().fit(x, y)
+            forecast_day = month_df['days_since'].max() + 30
+            prediction = model.predict([[forecast_day]])[0][0] * scale_factor
+
+            monthly_predictions.append({
+                "date": target_label + "-01",
+                "forecast_sales": round(prediction, 2)
             })
-        return predictions
 
-    dry_monthly = monthly_predictions(dry_df, scale_factor=1.5)
-    rainy_monthly = monthly_predictions(rainy_df, scale_factor=1.5)
+            total += prediction
+
+        # Compare last month of same type for trend
+        last_values = df[df['date'].dt.month.isin(months)].sort_values('date')['total_php'].values
+        last_actual = last_values[-1] if len(last_values) > 0 else 0
+        trend = "Increasing" if total > last_actual else "Decreasing" if total < last_actual else "Flat"
+
+        return {
+            "summary": {
+                "label": label,
+                "forecast_sales": round(total, 2),
+                "trend": trend
+            },
+            "monthly": monthly_predictions
+        }
+
+    dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season", scale_factor=1.5)
+    rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season", scale_factor=1.5)
 
     results = {
         "forecast_data": [
-            dry_summary,
-            rainy_summary
+            dry_result["summary"],
+            rainy_result["summary"]
         ],
         "dry_season_data": {
-            "dates": dry_df['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": dry_df['total_php'].tolist()
+            "dates": df[df['season'] == "Dry Season"]['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "sales": df[df['season'] == "Dry Season"]['total_php'].tolist()
         },
         "rainy_season_data": {
-            "dates": rainy_df['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": rainy_df['total_php'].tolist()
+            "dates": df[df['season'] == "Rainy Season"]['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "sales": df[df['season'] == "Rainy Season"]['total_php'].tolist()
         },
-        "dry_forecast_monthly": dry_monthly,
-        "rainy_forecast_monthly": rainy_monthly
+        "dry_forecast_monthly": dry_result["monthly"],
+        "rainy_forecast_monthly": rainy_result["monthly"]
     }
 
     return jsonify(results)
+
 
 @app.route('/forecast-units', methods=['GET'])
 def forecast_units_api():
