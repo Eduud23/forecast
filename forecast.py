@@ -65,7 +65,20 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
     y = df[['total_php']].values
     model = LinearRegression().fit(x, y)
 
-    # Forecast next 2 seasonal cycles (e.g., 12 dry or rainy months)
+    # Forecast for historical months (predictions for past months)
+    historical_predictions = []
+    for month in months:
+        historical_data = df[df['date'].dt.month == month]
+        if len(historical_data) > 0:
+            forecast_date = historical_data['date'].min()
+            days_since = (forecast_date - df['date'].min()).days
+            prediction = model.predict([[days_since]])[0][0] * scale_factor
+            historical_predictions.append({
+                "date": forecast_date.strftime('%Y-%m-%d'),
+                "forecast_sales": round(prediction, 2)
+            })
+
+    # Forecast next 12 months of the same season
     last_date = df['date'].max()
     forecast_months = []
     current = last_date.replace(day=1)
@@ -75,7 +88,7 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
         if current.month in months:
             forecast_months.append(current)
 
-    monthly_predictions = []
+    future_predictions = []
     total = 0
 
     for forecast_date in forecast_months:
@@ -83,7 +96,7 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
         prediction = model.predict([[days_since]])[0][0] * scale_factor
         prediction = max(0, prediction)  # ensure no negative forecasts
 
-        monthly_predictions.append({
+        future_predictions.append({
             "date": forecast_date.strftime('%Y-%m-%d'),
             "forecast_sales": round(prediction, 2)
         })
@@ -97,7 +110,8 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
             "forecast_sales": round(total, 2),
             "trend": trend
         },
-        "monthly": monthly_predictions
+        "historical_predictions": historical_predictions,
+        "future_predictions": future_predictions
     }
 
 # === API ROUTES ===
@@ -124,8 +138,10 @@ def forecast_api():
             "dates": df[df['season'] == "Rainy Season"]['date'].dt.strftime('%Y-%m-%d').tolist(),
             "sales": df[df['season'] == "Rainy Season"]['total_php'].tolist()
         },
-        "dry_forecast_monthly": dry_result["monthly"],
-        "rainy_forecast_monthly": rainy_result["monthly"]
+        "dry_forecast_monthly": dry_result["future_predictions"],
+        "rainy_forecast_monthly": rainy_result["future_predictions"],
+        "dry_historical_predictions": dry_result["historical_predictions"],
+        "rainy_historical_predictions": rainy_result["historical_predictions"]
     }
 
     return jsonify(results)

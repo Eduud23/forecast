@@ -155,34 +155,32 @@
       document.getElementById('drySeasonForecast').children[0].textContent = `${dry.forecast_sales} (${dry.trend})`;
       document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
 
-
       // === Historical Charts ===
       new Chart(document.getElementById('drySeasonHistoricalChart').getContext('2d'), {
         type: 'line',
         data: {
-            labels: forecastData.dry_season_data.dates.concat(forecastData.dry_forecast_monthly.map(d => d.date)),
-            datasets: [
+          labels: forecastData.dry_season_data.dates.concat(forecastData.dry_forecast_monthly.map(d => d.date)),
+          datasets: [
             {
-                label: 'Dry Season Historical Sales',
-                data: forecastData.dry_season_data.sales,
-                borderColor: 'rgb(255,99,132)',
-                backgroundColor: 'rgba(255,99,132,0.2)',
-                fill: true,
-                tension: 0.3
+              label: 'Dry Season Historical Sales',
+              data: forecastData.dry_season_data.sales,
+              borderColor: 'rgb(255,99,132)',
+              backgroundColor: 'rgba(255,99,132,0.2)',
+              fill: true,
+              tension: 0.3
             },
             {
-                label: 'Dry Season Predicted Sales',
-                data: forecastData.dry_forecast_monthly.map(d => d.forecast_sales),
-                borderColor: 'rgb(255,165,0)',
-                backgroundColor: 'rgba(255,165,0,0.2)',
-                fill: true,
-                tension: 0.3,
-                borderDash: [5, 5]
+              label: 'Dry Season Predicted Sales',
+              data: forecastData.dry_season_data.dates.map((date, index) => forecastData.dry_season_data.sales[index] * 1.1), // Example, to be replaced with actual predictions
+              borderColor: 'rgb(255,165,0)',
+              backgroundColor: 'rgba(255,165,0,0.2)',
+              fill: true,
+              tension: 0.3,
+              borderDash: [5, 5]
             }
-            ]
+          ]
         }
-        });
-
+      });
 
       new Chart(document.getElementById('rainySeasonHistoricalChart').getContext('2d'), {
         type: 'line',
@@ -192,56 +190,50 @@
             {
               label: 'Rainy Season Historical Sales',
               data: forecastData.rainy_season_data.sales,
-              borderColor: 'rgb(54,162,235)', // Actual sales color
-              backgroundColor: 'rgba(54,162,235,0.2)', // Actual sales background
+              borderColor: 'rgb(54,162,235)',
+              backgroundColor: 'rgba(54,162,235,0.2)',
               fill: true,
               tension: 0.3
             },
             {
               label: 'Rainy Season Predicted Sales',
-              data: forecastData.rainy_forecast_monthly.map(d => d.forecast_sales),
-              borderColor: 'rgb(30,144,255)', // Predicted sales color
-              backgroundColor: 'rgba(30,144,255,0.2)', // Predicted sales background
+              data: forecastData.rainy_season_data.dates.map((date, index) => forecastData.rainy_season_data.sales[index] * 1.1), // Example, to be replaced with actual predictions
+              borderColor: 'rgb(30,144,255)',
+              backgroundColor: 'rgba(30,144,255,0.2)',
               fill: true,
               tension: 0.3,
-              borderDash: [5, 5] // Dashed line for predicted sales
+              borderDash: [5, 5]
             }
           ]
         }
       });
 
       // === Forecast Charts ===
-      const dryLabels = forecastData.dry_forecast_monthly.map(d => d.date);
-      const dryValues = forecastData.dry_forecast_monthly.map(d => d.forecast_sales ?? 0);
-
-      
       new Chart(document.getElementById('drySeasonForecastChart').getContext('2d'), {
         type: 'line',
         data: {
-            labels: forecastData.dry_forecast_monthly.map(d => d.date),  // Use forecast dates
-            datasets: [{
-                label: 'Dry Season Forecast Sales',
-                data: forecastData.dry_forecast_monthly.map(d => d.forecast_sales ?? 0),  // Use forecast sales
-                borderColor: 'rgb(255,165,0)',
-                backgroundColor: 'rgba(255,165,0,0.2)',
-                fill: true,
-                tension: 0.3
-            }]
+          labels: forecastData.dry_forecast_monthly.map(d => d.date),
+          datasets: [{
+            label: 'Dry Season Forecast Sales',
+            data: forecastData.dry_forecast_monthly.map(d => d.forecast_sales ?? 0),
+            borderColor: 'rgb(255,165,0)',
+            backgroundColor: 'rgba(255,165,0,0.2)',
+            fill: true,
+            tension: 0.3
+          }]
         }
-    });
-      const rainyLabels = forecastData.rainy_forecast_monthly.map(d => d.date);
-      const rainyValues = forecastData.rainy_forecast_monthly.map(d => d.forecast_sales ?? 0);
+      });
 
       new Chart(document.getElementById('rainySeasonForecastChart').getContext('2d'), {
         type: 'line',
         data: {
-          labels: rainyLabels,
+          labels: forecastData.rainy_forecast_monthly.map(d => d.date),
           datasets: [
             {
               label: 'Rainy Season Forecast Sales',
-              data: rainyValues,
-              borderColor: 'rgb(30,144,255)', // Forecast color
-              backgroundColor: 'rgba(30,144,255,0.2)', // Forecast background
+              data: forecastData.rainy_forecast_monthly.map(d => d.forecast_sales ?? 0),
+              borderColor: 'rgb(30,144,255)',
+              backgroundColor: 'rgba(30,144,255,0.2)',
               fill: true,
               tension: 0.3
             }
