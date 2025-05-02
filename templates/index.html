@@ -100,6 +100,22 @@
       </div>
     </div>
 
+    <!-- Dry Season Future Forecast Chart -->
+    <div class="mb-4">
+      <h3 class="section-header">Dry Season Future Forecast</h3>
+      <div class="chart-wrapper">
+        <canvas id="dry-future-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Rainy Season Future Forecast Chart -->
+    <div class="mb-4">
+      <h3 class="section-header">Rainy Season Future Forecast</h3>
+      <div class="chart-wrapper">
+        <canvas id="rainy-future-chart"></canvas>
+      </div>
+    </div>
+
     <!-- Historical Predictions -->
     <div class="mb-4">
       <h3 class="section-header">Historical Predictions</h3>
@@ -129,8 +145,10 @@
         renderHistoricalPredictions(data.rainy_historical_predictions, 'Rainy Season');
         renderFuturePredictions(data.dry_forecast_monthly, 'Dry Season');
         renderFuturePredictions(data.rainy_forecast_monthly, 'Rainy Season');
-        renderCharts(data.dry_season_data, 'dry-season-chart', 'Dry Season', data.dry_forecast_monthly);
-        renderCharts(data.rainy_season_data, 'rainy-season-chart', 'Rainy Season', data.rainy_forecast_monthly);
+        renderCharts(data.dry_season_data, 'dry-season-chart', 'Dry Season');
+        renderCharts(data.rainy_season_data, 'rainy-season-chart', 'Rainy Season');
+        renderCharts(data.dry_forecast_monthly, 'dry-future-chart', 'Dry Season Future');
+        renderCharts(data.rainy_forecast_monthly, 'rainy-future-chart', 'Rainy Season Future');
       } catch (error) {
         console.error('Error fetching forecast data:', error);
       }
@@ -186,56 +204,31 @@
       container.appendChild(seasonDiv);
     }
 
-    function renderCharts(seasonData, chartId, seasonLabel, futurePredictions) {
-      const monthlyData = {};
-
-      // Group historical data by YYYY-MM
-      for (let i = 0; i < seasonData.dates.length; i++) {
-        const date = seasonData.dates[i];
-        const month = date.slice(0, 7);
-        if (!monthlyData[month]) {
-          monthlyData[month] = { sales: 0, quantity: 0 };
-        }
-        monthlyData[month].sales += seasonData.sales[i];
-        monthlyData[month].quantity += seasonData.quantity[i];
-      }
-
-      // Add future prediction data by month
-      futurePredictions.forEach(pred => {
-        const month = pred.date.slice(0, 7);
-        if (!monthlyData[month]) {
-          monthlyData[month] = { sales: 0, quantity: 0 };
-        }
-        monthlyData[month].sales += pred.forecast_sales;
-        monthlyData[month].quantity += pred.forecast_quantity;
-      });
-
-      const allMonths = Object.keys(monthlyData).sort();
-      const sales = allMonths.map(month => monthlyData[month].sales);
-      const quantity = allMonths.map(month => monthlyData[month].quantity);
+    function renderCharts(data, chartId, labelPrefix) {
+      const labels = data.map(entry => entry.date);
+      const sales = data.map(entry => entry.forecast_sales || entry.sales);
+      const quantity = data.map(entry => entry.forecast_quantity || entry.quantity);
 
       const ctx = document.getElementById(chartId).getContext('2d');
-      const chartData = {
-        labels: allMonths,
-        datasets: [
-          {
-            label: `${seasonLabel} - Sales`,
-            data: sales,
-            borderColor: 'rgba(75, 192, 192, 1)',
-            fill: false
-          },
-          {
-            label: `${seasonLabel} - Quantity`,
-            data: quantity,
-            borderColor: 'rgba(153, 102, 255, 1)',
-            fill: false
-          }
-        ]
-      };
-
       new Chart(ctx, {
         type: 'line',
-        data: chartData,
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: `${labelPrefix} - Sales`,
+              data: sales,
+              borderColor: 'rgba(75, 192, 192, 1)',
+              fill: false
+            },
+            {
+              label: `${labelPrefix} - Quantity`,
+              data: quantity,
+              borderColor: 'rgba(153, 102, 255, 1)',
+              fill: false
+            }
+          ]
+        },
         options: {
           responsive: true,
           maintainAspectRatio: false,
@@ -243,7 +236,7 @@
             x: {
               title: {
                 display: true,
-                text: 'Month'
+                text: 'Date'
               }
             },
             y: {
