@@ -57,44 +57,39 @@ def generate_forecast_dates(months, num_years=1):
     return forecast_dates
 
 def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
-    forecast_dates = generate_forecast_dates(months, num_years=2)
+    # Prepare full model
+    df = df.copy()
+    df['days_since'] = (df['date'] - df['date'].min()).dt.days
+
+    x = df[['days_since']].values
+    y = df[['total_php']].values
+    model = LinearRegression().fit(x, y)
+
+    # Forecast next 2 seasonal cycles (e.g., 12 dry or rainy months)
+    last_date = df['date'].max()
+    forecast_months = []
+    current = last_date.replace(day=1)
+
+    while len(forecast_months) < 12:
+        current = current + pd.DateOffset(months=1)
+        if current.month in months:
+            forecast_months.append(current)
+
     monthly_predictions = []
     total = 0
 
-    for forecast_date in forecast_dates:
-        month = forecast_date.month
-        label_date = forecast_date.strftime('%Y-%m')
-
-        month_df = df[df['date'].dt.month == month]
-        if len(month_df) == 0:
-            monthly_predictions.append({
-                "date": label_date + "-01",
-                "forecast_sales": None
-            })
-            continue
-
-        month_df = month_df.copy()
-        base_date = month_df['date'].min()
-        month_df['days_since'] = (month_df['date'] - base_date).dt.days
-
-        if len(month_df) == 1:
-            prediction = month_df['total_php'].iloc[0] * scale_factor
-        else:
-            x = month_df[['days_since']].values
-            y = month_df[['total_php']].values
-            model = LinearRegression().fit(x, y)
-            forecast_day = (forecast_date - base_date).days
-            prediction = model.predict([[forecast_day]])[0][0] * scale_factor
+    for forecast_date in forecast_months:
+        days_since = (forecast_date - df['date'].min()).days
+        prediction = model.predict([[days_since]])[0][0] * scale_factor
+        prediction = max(0, prediction)  # ensure no negative forecasts
 
         monthly_predictions.append({
-            "date": label_date + "-01",
+            "date": forecast_date.strftime('%Y-%m-%d'),
             "forecast_sales": round(prediction, 2)
         })
         total += prediction
 
-    last_values = df[df['date'].dt.month.isin(months)].sort_values('date')['total_php'].values
-    last_actual = last_values[-1] if len(last_values) > 0 else 0
-    trend = "Increasing" if total > last_actual else "Decreasing" if total < last_actual else "Flat"
+    trend = "Increasing" if total > df[df['date'].dt.month.isin(months)]['total_php'].sum() else "Decreasing"
 
     return {
         "summary": {
