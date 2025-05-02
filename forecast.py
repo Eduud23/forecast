@@ -62,8 +62,17 @@ def get_sales_data():
     df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d', errors='coerce')
     df = df.dropna(subset=['date'])  # Remove rows with invalid dates
 
+    # Check if 'date' column exists
+    if 'date' not in df.columns:
+        raise ValueError("The 'date' column is missing from the DataFrame")
+
     # Aggregate by month
     df['month'] = df['date'].dt.to_period('M')
+
+    # Ensure 'month' column is created
+    if 'month' not in df.columns:
+        raise ValueError("The 'month' column could not be created")
+
     df = df.groupby(['month', 'category']).agg({'total_php': 'sum', 'quantity': 'sum'}).reset_index()
 
     # Add season column (Dry or Rainy)
