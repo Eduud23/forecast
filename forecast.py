@@ -45,7 +45,7 @@ def get_sales_data():
     )
     return df
 
-def forecast(df_subset, label, scale_factor=1.0):
+def forecast(df_subset, label, months_ahead=6, scale_factor=1.0):
     if df_subset.empty or len(df_subset) < 2:
         return { "label": label, "error": "Not enough data." }
 
@@ -53,9 +53,16 @@ def forecast(df_subset, label, scale_factor=1.0):
     y = df_subset[['total_php']].values
     model = LinearRegression().fit(x, y)
 
-    forecast_day = df_subset['days_since'].max() + 30  # Predicting 30 days into the future
-    predicted = model.predict([[forecast_day]])[0][0] * scale_factor
+    forecast_day_start = df_subset['days_since'].max()
+    forecast_total = 0
 
+    # Predict for each month in the upcoming season
+    for i in range(1, months_ahead + 1):
+        forecast_day = forecast_day_start + (30 * i)  # Approximate 30 days/month
+        monthly_prediction = model.predict([[forecast_day]])[0][0]
+        forecast_total += monthly_prediction
+
+    predicted = forecast_total * scale_factor
     last_actual = y[-1][0]
     trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
 
@@ -64,6 +71,7 @@ def forecast(df_subset, label, scale_factor=1.0):
         "forecast_sales": round(predicted, 2),
         "trend": trend
     }
+
 
 # === API ROUTES ===
 @app.route('/forecast', methods=['GET'])
