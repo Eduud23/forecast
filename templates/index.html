@@ -39,47 +39,6 @@
         .forecast-text {
             font-weight: bold;
         }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 9999;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.6);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 5% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 800px;
-            border-radius: 10px;
-            position: relative;
-        }
-
-        .close {
-            color: #aaa;
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-        }
-
     </style>
 </head>
 <body>
@@ -87,54 +46,27 @@
         <h3>Dry Season Sales Forecast (December to May)</h3>
         <canvas id="drySeasonSalesChart"></canvas>
         <p class="forecast-text" id="drySeasonForecast">Dry Season Forecast Sales: <span></span></p>
-        <button onclick="showModal('dry')">Show Dry Season Unit Forecast</button>
 
         <h3>Rainy Season Sales Forecast (June to November)</h3>
         <canvas id="rainySeasonSalesChart"></canvas>
         <p class="forecast-text" id="rainySeasonForecast">Rainy Season Forecast Sales: <span></span></p>
-        <button onclick="showModal('rainy')">Show Rainy Season Unit Forecast</button>
-
-        <h3>Next Month Sales Forecast</h3>
-        <canvas id="nextMonthSalesChart"></canvas>
-        <p class="forecast-text" id="nextMonthForecast">Next Month Forecast Sales: <span></span></p>
-        <button onclick="showModal('next')">Show Next Month Unit Forecast</button>
-    </div>
-
-    <!-- Modal Template -->
-    <div id="unitForecastModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h3 id="modalTitle">Unit Forecast</h3>
-            <canvas id="unitForecastChart"></canvas>
-        </div>
     </div>
 
     <script>
-        let forecastUnitsData = null;
-        let unitChartInstance = null;
-
         async function fetchForecastData() {
             const response = await fetch('/forecast');
             return response.json();
         }
 
-        async function fetchUnitForecastData() {
-            const response = await fetch('/forecast-units');
-            return response.json();
-        }
-
         async function renderCharts() {
             const forecastData = await fetchForecastData();
-            forecastUnitsData = await fetchUnitForecastData();
 
             const dry = forecastData.forecast_data.find(f => f.label.includes("Dry"));
             const rainy = forecastData.forecast_data.find(f => f.label.includes("Rainy"));
-            const next = forecastData.forecast_data.find(f => f.label.includes("Next"));
 
             // Update text content with forecast sales and trend
             document.getElementById('drySeasonForecast').children[0].textContent = `${dry.forecast_sales} (${dry.trend})`;
             document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
-            document.getElementById('nextMonthForecast').children[0].textContent = `${next.forecast_sales} (${next.trend})`;
 
             // Dry Season Sales Chart
             new Chart(document.getElementById('drySeasonSalesChart').getContext('2d'), {
@@ -143,7 +75,7 @@
                     labels: forecastData.dry_season_specific_data.dates.concat(['Forecast']),
                     datasets: [{
                         label: 'Dry Season Sales',
-                        data: forecastData.dry_season_specific_data.sales.concat(dry.forecast_sales),
+                        data: forecastData.dry_season_specific_data.totals.concat(dry.forecast_sales),
                         borderColor: 'rgb(255,99,132)',
                         fill: false
                     }]
@@ -157,86 +89,12 @@
                     labels: forecastData.rainy_season_specific_data.dates.concat(['Forecast']),
                     datasets: [{
                         label: 'Rainy Season Sales',
-                        data: forecastData.rainy_season_specific_data.sales.concat(rainy.forecast_sales),
+                        data: forecastData.rainy_season_specific_data.totals.concat(rainy.forecast_sales),
                         borderColor: 'rgb(54,162,235)',
                         fill: false
                     }]
                 }
             });
-
-            // Next Month Sales Chart
-            new Chart(document.getElementById('nextMonthSalesChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: forecastData.historical_data.dates.concat(['Forecast']),
-                    datasets: [{
-                        label: 'Monthly Sales',
-                        data: forecastData.historical_data.sales.concat(next.forecast_sales),
-                        borderColor: 'rgb(75,192,192)',
-                        fill: false
-                    }]
-                }
-            });
-        }
-
-        function showModal(season) {
-            const modal = document.getElementById("unitForecastModal");
-            const ctx = document.getElementById("unitForecastChart").getContext('2d');
-            const title = document.getElementById("modalTitle");
-
-            let data = [];
-            if (!forecastUnitsData) return;
-
-            if (season === 'dry') {
-                data = forecastUnitsData["Dry Season"];
-                title.textContent = "Dry Season Unit Forecast";
-            } else if (season === 'rainy') {
-                data = forecastUnitsData["Rainy Season"];
-                title.textContent = "Rainy Season Unit Forecast";
-            } else if (season === 'next') {
-                data = forecastUnitsData["Next Month"];
-                title.textContent = `Next Month Unit Forecast (${forecastUnitsData["Next Month Forecast Range"].start_date} to ${forecastUnitsData["Next Month Forecast Range"].end_date})`;
-            }
-
-            if (unitChartInstance) {
-                unitChartInstance.destroy();
-            }
-
-            unitChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.map(d => d.category),
-                    datasets: [{
-                        label: 'Forecast Units',
-                        data: data.map(d => d.forecast_units),
-                        backgroundColor: 'rgba(100,149,237,0.6)',
-                        borderColor: 'rgba(100,149,237,1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-
-            modal.style.display = "block";
-        }
-
-        function closeModal() {
-            document.getElementById("unitForecastModal").style.display = "none";
-        }
-
-        // Close modal if clicked outside
-        window.onclick = function(event) {
-            const modal = document.getElementById("unitForecastModal");
-            if (event.target === modal) {
-                modal.style.display = "none";
-            }
         }
 
         renderCharts();
