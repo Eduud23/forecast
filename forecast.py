@@ -30,7 +30,7 @@ def get_sales_data():
     for doc in docs:
         entry = doc.to_dict()
 
-        # Check if 'date' field exists and is valid
+        # Check if 'date' field exists and is a valid string in the expected format
         if 'date' in entry and isinstance(entry['date'], str):
             try:
                 # Convert the date string to a datetime object (format: "YYYY-MM-DD")
@@ -44,6 +44,8 @@ def get_sales_data():
                         'quantity': entry['quantity'],
                         'total_php': entry['total_php']
                     })
+                else:
+                    print(f"Invalid date format for document {doc.id}: {entry['date']}")
             except Exception as e:
                 print(f"Error converting date for document {doc.id}: {e}")
         else:
@@ -56,14 +58,9 @@ def get_sales_data():
     # Create DataFrame from the gathered data
     df = pd.DataFrame(data)
 
-    # Ensure that the 'date' column is of datetime type
-    if 'date' not in df.columns:
-        raise KeyError("'date' column is missing in the data")
-
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-
-    # Remove rows with invalid dates
-    df = df.dropna(subset=['date'])
+    # Ensure that the 'date' column is of datetime type and drop rows with invalid dates
+    df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d', errors='coerce')
+    df = df.dropna(subset=['date'])  # Remove rows with invalid dates
 
     # Aggregate by month
     df['month'] = df['date'].dt.to_period('M')
