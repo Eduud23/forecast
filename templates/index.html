@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Forecast</title>
+    <title>Sales Forecast Dashboard</title>
     <!-- Bootstrap CSS -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,7 +12,7 @@
 
 <body>
     <div class="container mt-5">
-        <h1 class="text-center mb-4">Sales and Quantity Forecast</h1>
+        <h1 class="text-center mb-4">Sales and Quantity Forecast Dashboard</h1>
 
         <!-- Forecast Data -->
         <div id="forecast-container" class="mb-4">
@@ -164,22 +164,24 @@
                 type: 'line',
                 data: chartData,
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Amount'
-                            }
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Amount'
                         }
                     }
+                }
+            }
+
                 });
         }
 
