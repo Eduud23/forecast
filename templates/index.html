@@ -189,7 +189,7 @@
 
       // === Forecast Charts ===
       const dryLabels = forecastData.dry_forecast_monthly.map(d => d.date);
-      const dryValues = forecastData.dry_forecast_monthly.map(d => d.forecast_sales);
+      const dryValues = forecastData.dry_forecast_monthly.map(d => d.forecast_sales ?? 0);
 
       new Chart(document.getElementById('drySeasonForecastChart').getContext('2d'), {
         type: 'line',
@@ -207,7 +207,7 @@
       });
 
       const rainyLabels = forecastData.rainy_forecast_monthly.map(d => d.date);
-      const rainyValues = forecastData.rainy_forecast_monthly.map(d => d.forecast_sales);
+      const rainyValues = forecastData.rainy_forecast_monthly.map(d => d.forecast_sales ?? 0);
 
       new Chart(document.getElementById('rainySeasonForecastChart').getContext('2d'), {
         type: 'line',
