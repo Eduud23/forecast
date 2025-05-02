@@ -1,245 +1,290 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sales Forecast</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f0f4f8, #c7e0e8);
-            color: #333;
-            padding: 20px;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sales Forecast</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #f0f4f8, #c7e0e8);
+      color: #333;
+      padding: 20px;
+    }
 
-        .container {
-            max-width: 1000px;
-            margin: auto;
-        }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+    }
 
-        h3 {
-            color: #444;
-        }
+    h3 {
+      color: #444;
+      margin-top: 40px;
+    }
 
-        canvas {
-            margin-bottom: 10px;
-        }
+    canvas {
+      margin-bottom: 20px;
+    }
 
-        button {
-            padding: 8px 12px;
-            background-color: #337ab7;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            margin: 10px 0;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
+    button {
+      padding: 8px 12px;
+      background-color: #337ab7;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin: 10px 0;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
 
-        button:hover {
-            background-color: #286090;
-        }
+    button:hover {
+      background-color: #286090;
+    }
 
-        .forecast-text {
-            font-weight: bold;
-        }
+    .forecast-text {
+      font-weight: bold;
+    }
 
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 9999;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.6);
-        }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.6);
+    }
 
-        .modal-content {
-            background-color: #fefefe;
-            margin: 5% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 800px;
-            border-radius: 10px;
-            position: relative;
-        }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 800px;
+      border-radius: 10px;
+      position: relative;
+    }
 
-        .close {
-            color: #aaa;
-            position: absolute;
-            top: 10px;
-            right: 20px;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
+    .close {
+      color: #aaa;
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
 
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-        }
-    </style>
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h3>Dry Season Sales Forecast (December to May)</h3>
-        <p><em>This forecast is for the <strong>next Dry Season</strong>.</em></p>
-        <canvas id="drySeasonSalesChart"></canvas>
-        <p class="forecast-text" id="drySeasonForecast">
-            Dry Season Forecast Sales (Next Season): <span></span>
-        </p>
-        <button onclick="showModal('dry')">Show Dry Season Unit Forecast</button>
+  <div class="container">
+    <h2>Historical Sales Data</h2>
 
-        <h3>Rainy Season Sales Forecast (June to November)</h3>
-        <p><em>This forecast is for the <strong>next Rainy Season</strong>.</em></p>
-        <canvas id="rainySeasonSalesChart"></canvas>
-        <p class="forecast-text" id="rainySeasonForecast">
-            Rainy Season Forecast Sales (Next Season): <span></span>
-        </p>
-        <button onclick="showModal('rainy')">Show Rainy Season Unit Forecast</button>
+    <h3>Dry Season</h3>
+    <canvas id="drySeasonHistoricalChart"></canvas>
+
+    <h3>Rainy Season</h3>
+    <canvas id="rainySeasonHistoricalChart"></canvas>
+
+    <h2>Next Season Forecast</h2>
+
+    <h3>Dry Season Forecast (December to May)</h3>
+    <canvas id="drySeasonForecastChart"></canvas>
+    <p class="forecast-text" id="drySeasonForecast">
+      Total Forecast Sales: <span></span>
+    </p>
+    <button onclick="showModal('dry')">Show Dry Season Unit Forecast</button>
+
+    <h3>Rainy Season Forecast (June to November)</h3>
+    <canvas id="rainySeasonForecastChart"></canvas>
+    <p class="forecast-text" id="rainySeasonForecast">
+      Total Forecast Sales: <span></span>
+    </p>
+    <button onclick="showModal('rainy')">Show Rainy Season Unit Forecast</button>
+  </div>
+
+  <div id="unitForecastModal" class="modal" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()" aria-label="Close">&times;</span>
+      <h3 id="modalTitle">Unit Forecast</h3>
+      <canvas id="unitForecastChart" aria-label="Unit Forecast Chart"></canvas>
     </div>
+  </div>
 
-    <!-- Modal Template -->
-    <div id="unitForecastModal" class="modal" aria-labelledby="modalTitle">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()" aria-label="Close">&times;</span>
-            <h3 id="modalTitle">Unit Forecast</h3>
-            <canvas id="unitForecastChart" aria-label="Unit Forecast Chart"></canvas>
-        </div>
-    </div>
+  <script>
+    let forecastUnitsData = null;
+    let unitChartInstance = null;
 
-    <script>
-        let forecastUnitsData = null;
-        let unitChartInstance = null;
+    async function fetchForecastData() {
+      try {
+        const response = await fetch('/forecast');
+        if (!response.ok) throw new Error('Failed to load forecast data');
+        return await response.json();
+      } catch (error) {
+        alert('Error fetching forecast data: ' + error.message);
+      }
+    }
 
-        async function fetchForecastData() {
-            try {
-                const response = await fetch('/forecast');
-                if (!response.ok) throw new Error('Failed to load forecast data');
-                return await response.json();
-            } catch (error) {
-                alert('Error fetching forecast data: ' + error.message);
-            }
+    async function fetchUnitForecastData() {
+      try {
+        const response = await fetch('/forecast-units');
+        if (!response.ok) throw new Error('Failed to load unit forecast data');
+        return await response.json();
+      } catch (error) {
+        alert('Error fetching unit forecast data: ' + error.message);
+      }
+    }
+
+    async function renderCharts() {
+      const forecastData = await fetchForecastData();
+      forecastUnitsData = await fetchUnitForecastData();
+
+      const dry = forecastData.forecast_data.find(f => f.label.includes("Dry"));
+      const rainy = forecastData.forecast_data.find(f => f.label.includes("Rainy"));
+
+      document.getElementById('drySeasonForecast').children[0].textContent = `${dry.forecast_sales} (${dry.trend})`;
+      document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
+
+      // === Historical Charts ===
+      new Chart(document.getElementById('drySeasonHistoricalChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: forecastData.dry_season_data.dates,
+          datasets: [{
+            label: 'Dry Season Historical Sales',
+            data: forecastData.dry_season_data.sales,
+            borderColor: 'rgb(255,99,132)',
+            backgroundColor: 'rgba(255,99,132,0.2)',
+            fill: true,
+            tension: 0.3
+          }]
         }
+      });
 
-        async function fetchUnitForecastData() {
-            try {
-                const response = await fetch('/forecast-units');
-                if (!response.ok) throw new Error('Failed to load unit forecast data');
-                return await response.json();
-            } catch (error) {
-                alert('Error fetching unit forecast data: ' + error.message);
-            }
+      new Chart(document.getElementById('rainySeasonHistoricalChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: forecastData.rainy_season_data.dates,
+          datasets: [{
+            label: 'Rainy Season Historical Sales',
+            data: forecastData.rainy_season_data.sales,
+            borderColor: 'rgb(54,162,235)',
+            backgroundColor: 'rgba(54,162,235,0.2)',
+            fill: true,
+            tension: 0.3
+          }]
         }
+      });
 
-        async function renderCharts() {
-            const forecastData = await fetchForecastData();
-            forecastUnitsData = await fetchUnitForecastData();
+      // === Forecast Charts ===
+      const dryLabels = forecastData.dry_forecast_monthly.map(d => d.date);
+      const dryValues = forecastData.dry_forecast_monthly.map(d => d.forecast_sales);
 
-            const dry = forecastData.forecast_data.find(f => f.label.includes("Dry"));
-            const rainy = forecastData.forecast_data.find(f => f.label.includes("Rainy"));
-
-            document.getElementById('drySeasonForecast').children[0].textContent = `${dry.forecast_sales} (${dry.trend})`;
-            document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
-
-            // Dry Season Sales Chart
-            new Chart(document.getElementById('drySeasonSalesChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: forecastData.dry_season_data.dates.concat(['Forecast']),
-                    datasets: [{
-                        label: 'Dry Season Sales',
-                        data: forecastData.dry_season_data.sales.concat(dry.forecast_sales),
-                        borderColor: 'rgb(255,99,132)',
-                        fill: false
-                    }]
-                }
-            });
-
-            // Rainy Season Sales Chart
-            new Chart(document.getElementById('rainySeasonSalesChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: forecastData.rainy_season_data.dates.concat(['Forecast']),
-                    datasets: [{
-                        label: 'Rainy Season Sales',
-                        data: forecastData.rainy_season_data.sales.concat(rainy.forecast_sales),
-                        borderColor: 'rgb(54,162,235)',
-                        fill: false
-                    }]
-                }
-            });
+      new Chart(document.getElementById('drySeasonForecastChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: dryLabels,
+          datasets: [{
+            label: 'Dry Season Forecast Sales',
+            data: dryValues,
+            borderColor: 'rgb(255,165,0)',
+            backgroundColor: 'rgba(255,165,0,0.2)',
+            fill: true,
+            tension: 0.3
+          }]
         }
+      });
 
-        function showModal(season) {
-            const modal = document.getElementById("unitForecastModal");
-            const ctx = document.getElementById("unitForecastChart").getContext('2d');
-            const title = document.getElementById("modalTitle");
+      const rainyLabels = forecastData.rainy_forecast_monthly.map(d => d.date);
+      const rainyValues = forecastData.rainy_forecast_monthly.map(d => d.forecast_sales);
 
-            let data = [];
-            if (!forecastUnitsData) return;
-
-            if (season === 'dry') {
-                data = forecastUnitsData["Dry Season"];
-                title.textContent = "Dry Season Unit Forecast (Next Season)";
-            } else if (season === 'rainy') {
-                data = forecastUnitsData["Rainy Season"];
-                title.textContent = "Rainy Season Unit Forecast (Next Season)";
-            }
-
-            if (unitChartInstance) {
-                unitChartInstance.destroy();
-            }
-
-            unitChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.map(d => d.category),
-                    datasets: [{
-                        label: 'Forecast Units (Next Season)',
-                        data: data.map(d => d.forecast_units),
-                        backgroundColor: 'rgba(100,149,237,0.6)',
-                        borderColor: 'rgba(100,149,237,1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-
-            modal.style.display = "block";
+      new Chart(document.getElementById('rainySeasonForecastChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: rainyLabels,
+          datasets: [{
+            label: 'Rainy Season Forecast Sales',
+            data: rainyValues,
+            borderColor: 'rgb(30,144,255)',
+            backgroundColor: 'rgba(30,144,255,0.2)',
+            fill: true,
+            tension: 0.3
+          }]
         }
+      });
+    }
 
-        function closeModal() {
-            document.getElementById("unitForecastModal").style.display = "none";
+    function showModal(season) {
+      const modal = document.getElementById("unitForecastModal");
+      const ctx = document.getElementById("unitForecastChart").getContext('2d');
+      const title = document.getElementById("modalTitle");
+
+      let data = [];
+      if (!forecastUnitsData) return;
+
+      if (season === 'dry') {
+        data = forecastUnitsData["Dry Season"];
+        title.textContent = "Dry Season Unit Forecast (Next Season)";
+      } else if (season === 'rainy') {
+        data = forecastUnitsData["Rainy Season"];
+        title.textContent = "Rainy Season Unit Forecast (Next Season)";
+      }
+
+      if (unitChartInstance) {
+        unitChartInstance.destroy();
+      }
+
+      unitChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.category),
+          datasets: [{
+            label: 'Forecast Units (Next Season)',
+            data: data.map(d => d.forecast_units),
+            backgroundColor: 'rgba(100,149,237,0.6)',
+            borderColor: 'rgba(100,149,237,1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          }
         }
+      });
 
-        window.onclick = function(event) {
-            const modal = document.getElementById("unitForecastModal");
-            if (event.target === modal) {
-                modal.style.display = "none";
-            }
-        }
+      modal.style.display = "block";
+    }
 
-        window.addEventListener('keydown', function(event) {
-            if (event.key === "Escape") {
-                closeModal();
-            }
-        });
+    function closeModal() {
+      document.getElementById("unitForecastModal").style.display = "none";
+    }
 
-        renderCharts();
-    </script>
+    window.onclick = function(event) {
+      const modal = document.getElementById("unitForecastModal");
+      if (event.target === modal) {
+        modal.style.display = "none";
+      }
+    };
+
+    window.addEventListener('keydown', function(event) {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    });
+
+    renderCharts();
+  </script>
 </body>
 </html>
