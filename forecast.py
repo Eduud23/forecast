@@ -56,9 +56,8 @@ def forecast(df_subset, label, months_ahead=6, scale_factor=1.0):
     forecast_day_start = df_subset['days_since'].max()
     forecast_total = 0
 
-    # Predict for each month in the upcoming season
     for i in range(1, months_ahead + 1):
-        forecast_day = forecast_day_start + (30 * i)  # Approximate 30 days/month
+        forecast_day = forecast_day_start + (30 * i)
         monthly_prediction = model.predict([[forecast_day]])[0][0]
         forecast_total += monthly_prediction
 
@@ -72,28 +71,16 @@ def forecast(df_subset, label, months_ahead=6, scale_factor=1.0):
         "trend": trend
     }
 
-
-# === API ROUTES ===
-@app.route('/forecast', methods=['GET'])
-def forecast_api():
-    df = get_sales_data()
-
-    dry_months = [12, 1, 2, 3, 4, 5]
-    rainy_months = [6, 7, 8, 9, 10, 11]
-
-    def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
+def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
     today = datetime.today()
     year = today.year
 
-    # Determine upcoming season year boundaries
     if months[0] == 12:
-        # Dry season (Dec–May): starts Dec this year if today is before Dec, else next year
         start_year = year if today.month < 12 else year + 1
         forecast_dates = [datetime(start_year, 12, 1)]
         for m in [1, 2, 3, 4, 5]:
             forecast_dates.append(datetime(start_year + 1, m, 1))
     else:
-        # Rainy season (Jun–Nov): starts Jun this year if today < Jun, else next year
         start_year = year if today.month < 6 else year + 1
         forecast_dates = [datetime(start_year, m, 1) for m in months]
 
@@ -104,7 +91,6 @@ def forecast_api():
         month = forecast_date.month
         label_date = forecast_date.strftime('%Y-%m')
 
-        # Historical data for that same month
         month_df = df[df['date'].dt.month == month]
         if len(month_df) < 2:
             monthly_predictions.append({
@@ -113,7 +99,6 @@ def forecast_api():
             })
             continue
 
-        # Prepare regression data
         month_df = month_df.copy()
         base_date = month_df['date'].min()
         month_df['days_since'] = (month_df['date'] - base_date).dt.days
@@ -121,7 +106,6 @@ def forecast_api():
         y = month_df[['total_php']].values
 
         model = LinearRegression().fit(x, y)
-
         forecast_day = (forecast_date - base_date).days
         prediction = model.predict([[forecast_day]])[0][0] * scale_factor
 
@@ -129,7 +113,6 @@ def forecast_api():
             "date": label_date + "-01",
             "forecast_sales": round(prediction, 2)
         })
-
         total += prediction
 
     last_values = df[df['date'].dt.month.isin(months)].sort_values('date')['total_php'].values
@@ -144,6 +127,14 @@ def forecast_api():
         },
         "monthly": monthly_predictions
     }
+
+# === API ROUTES ===
+@app.route('/forecast', methods=['GET'])
+def forecast_api():
+    df = get_sales_data()
+
+    dry_months = [12, 1, 2, 3, 4, 5]
+    rainy_months = [6, 7, 8, 9, 10, 11]
 
     dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season", scale_factor=1.5)
     rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season", scale_factor=1.5)
@@ -166,7 +157,6 @@ def forecast_api():
     }
 
     return jsonify(results)
-
 
 @app.route('/forecast-units', methods=['GET'])
 def forecast_units_api():
