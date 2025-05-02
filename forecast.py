@@ -45,7 +45,7 @@ def get_sales_data():
     )
     return df
 
-def forecast(df_subset, label, scale_factor=1.0):
+def forecast(df_subset, label, scale_factor=1.0, forecast_days=30):
     if df_subset.empty or len(df_subset) < 2:
         return { "label": label, "error": "Not enough data." }
 
@@ -53,7 +53,7 @@ def forecast(df_subset, label, scale_factor=1.0):
     y = df_subset[['total_php']].values
     model = LinearRegression().fit(x, y)
 
-    forecast_day = df_subset['days_since'].max() + 30
+    forecast_day = df_subset['days_since'].max() + forecast_days
     predicted = model.predict([[forecast_day]])[0][0] * scale_factor
 
     last_actual = y[-1][0]
@@ -69,15 +69,14 @@ def forecast(df_subset, label, scale_factor=1.0):
 @app.route('/forecast', methods=['GET'])
 def forecast_api():
     df = get_sales_data()
+
+    # Forecast for the Dry and Rainy seasons dynamically
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
-    # Dry and Rainy Season Forecasts (Dry season: December to May, Rainy season: June to November)
-    dry_df_specific = dry_df[(dry_df['date'] >= datetime(2024, 12, 1)) & (dry_df['date'] <= datetime(2025, 5, 31))]
-    rainy_df_specific = rainy_df[(rainy_df['date'] >= datetime(2025, 6, 1)) & (rainy_df['date'] <= datetime(2025, 11, 30))]
-
-    dry_forecast = forecast(dry_df_specific, "🌞 Dry Season", scale_factor=1.5)
-    rainy_forecast = forecast(rainy_df_specific, "🌧️ Rainy Season", scale_factor=1.5)
+    # Adjust for future period (forecast next 30 days for both seasons)
+    dry_forecast = forecast(dry_df, "🌞 Dry Season", scale_factor=1.5, forecast_days=30)
+    rainy_forecast = forecast(rainy_df, "🌧️ Rainy Season", scale_factor=1.5, forecast_days=30)
 
     # Next Month Forecast (Sales)
     today = datetime.today()
@@ -111,12 +110,12 @@ def forecast_api():
             next_month_forecast
         ],
         "dry_season_specific_data": {
-            "dates": dry_df_specific['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": dry_df_specific['total_php'].tolist()
+            "dates": dry_df['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "sales": dry_df['total_php'].tolist()
         },
         "rainy_season_specific_data": {
-            "dates": rainy_df_specific['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": rainy_df_specific['total_php'].tolist()
+            "dates": rainy_df['date'].dt.strftime('%Y-%m-%d').tolist(),
+            "sales": rainy_df['total_php'].tolist()
         }
     }
 
@@ -209,6 +208,7 @@ def forecast_units_api():
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

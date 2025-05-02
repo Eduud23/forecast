@@ -131,6 +131,7 @@
             const rainy = forecastData.forecast_data.find(f => f.label.includes("Rainy"));
             const next = forecastData.forecast_data.find(f => f.label.includes("Next"));
 
+            // Update text content with forecast sales and trend
             document.getElementById('drySeasonForecast').children[0].textContent = `${dry.forecast_sales} (${dry.trend})`;
             document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
             document.getElementById('nextMonthForecast').children[0].textContent = `${next.forecast_sales} (${next.trend})`;
