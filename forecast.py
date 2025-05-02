@@ -13,7 +13,6 @@ CORS(app)
 
 # === FIREBASE SETUP ===
 firebase_key_json = os.environ.get("FIREBASE_KEY_JSON")
-
 if not firebase_key_json:
     raise ValueError("FIREBASE_KEY_JSON env var is not set")
 
@@ -45,46 +44,66 @@ def get_sales_data():
     )
     return df
 
-def forecast(df_subset, label, scale_factor=1.0):
-    if df_subset.empty or len(df_subset) < 2:
-        return { "label": label, "error": "Not enough data." }
-
-    x = df_subset[['days_since']].values
-    y = df_subset[['total_php']].values
-    model = LinearRegression().fit(x, y)
-
-    forecast_day = df_subset['days_since'].max() + 30
-    predicted = model.predict([[forecast_day]])[0][0] * scale_factor
-
-    last_actual = y[-1][0]
-    trend = "Increasing" if predicted > last_actual else "Decreasing" if predicted < last_actual else "Flat"
-
-    return {
-        "label": label,
-        "forecast_sales": round(predicted, 2),
-        "trend": trend
-    }
-
 # === API ROUTES ===
 @app.route('/forecast', methods=['GET'])
 def forecast_api():
     df = get_sales_data()
+    if df.empty:
+        return jsonify({"error": "No sales data available"}), 400
+
     dry_df = df[df['season'] == "Dry Season"]
     rainy_df = df[df['season'] == "Rainy Season"]
 
-    dry_df_specific = dry_df[(dry_df['date'] >= datetime(2024, 1, 1)) & (dry_df['date'] <= datetime(2024, 5, 31))]
-    rainy_df_specific = rainy_df[(rainy_df['date'] >= datetime(2024, 6, 1)) & (rainy_df['date'] <= datetime(2024, 11, 30))]
+    today = datetime.today()
+    year = today.year
 
-    dry_forecast = forecast(dry_df_specific, "🌞 Dry Season", scale_factor=1.5)
-    rainy_forecast = forecast(rainy_df_specific, "🌧️ Rainy Season", scale_factor=1.5)
+    # Determine upcoming dry season
+    if today.month >= 6:
+        dry_start = datetime(year + 1, 1, 1)
+        dry_end = datetime(year + 1, 5, 31)
+    else:
+        dry_start = datetime(year, 12, 1)
+        dry_end = datetime(year + 1, 5, 31)
+
+    # Determine upcoming rainy season
+    if today.month >= 12 or today.month <= 5:
+        rainy_start = datetime(year, 6, 1)
+        rainy_end = datetime(year, 11, 30)
+    else:
+        rainy_start = datetime(year + 1, 6, 1)
+        rainy_end = datetime(year + 1, 11, 30)
+
+    dry_model = LinearRegression().fit(dry_df[['days_since']], dry_df[['total_php']])
+    rainy_model = LinearRegression().fit(rainy_df[['days_since']], rainy_df[['total_php']])
+
+    dry_forecast_day = (dry_start + timedelta(days=90) - df['date'].min()).days
+    rainy_forecast_day = (rainy_start + timedelta(days=90) - df['date'].min()).days
+
+    dry_predicted = dry_model.predict([[dry_forecast_day]])[0][0] * 6  # 6-month total
+    rainy_predicted = rainy_model.predict([[rainy_forecast_day]])[0][0] * 6
+
+    dry_forecast = {
+        "label": "🌞 Next Dry Season",
+        "forecast_sales": round(dry_predicted, 2),
+        "trend": "N/A",
+        "forecast_range": {
+            "start_date": dry_start.strftime("%Y-%m-%d"),
+            "end_date": dry_end.strftime("%Y-%m-%d")
+        }
+    }
+
+    rainy_forecast = {
+        "label": "🌧️ Next Rainy Season",
+        "forecast_sales": round(rainy_predicted, 2),
+        "trend": "N/A",
+        "forecast_range": {
+            "start_date": rainy_start.strftime("%Y-%m-%d"),
+            "end_date": rainy_end.strftime("%Y-%m-%d")
+        }
+    }
 
     # === Next Month Forecast (Sales) ===
-    today = datetime.today()
-
-    # Get the first day of next month
     next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
-    
-    # Get the last day of next month
     next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
 
     forecast_day = (next_month_start - df['date'].min()).days
@@ -112,102 +131,8 @@ def forecast_api():
             dry_forecast,
             rainy_forecast,
             next_month_forecast
-        ],
-        "dry_season_specific_data": {
-            "dates": dry_df_specific['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": dry_df_specific['total_php'].tolist()
-        },
-        "rainy_season_specific_data": {
-            "dates": rainy_df_specific['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": rainy_df_specific['total_php'].tolist()
-        }
+        ]
     }
-
-    return jsonify(results)
-
-@app.route('/forecast-units', methods=['GET'])
-def forecast_units_api():
-    sales_ref = db.collection("sales_orders").order_by("date")
-    docs = sales_ref.stream()
-    data = []
-
-    for doc in docs:
-        entry = doc.to_dict()
-        if 'date' in entry and 'quantity' in entry and 'category' in entry:
-            data.append({
-                'date': entry['date'],
-                'quantity': entry['quantity'],
-                'category': entry['category']
-            })
-
-    if not data:
-        return jsonify({"error": "No sales unit data found."}), 400
-
-    df = pd.DataFrame(data)
-
-    try:
-        df['date'] = pd.to_datetime(df['date'], errors='coerce')
-        df = df.dropna(subset=['date'])
-    except Exception as e:
-        return jsonify({"error": f"Date parsing failed: {str(e)}"}), 500
-
-    if df.empty:
-        return jsonify({"error": "No valid sales data after date cleaning."}), 400
-
-    df = df.sort_values('date')
-    df['days_since'] = (df['date'] - df['date'].min()).dt.days
-    df['season'] = df['date'].dt.month.apply(
-        lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
-    )
-
-    results = {}
-
-    for season in ['Dry Season', 'Rainy Season']:
-        season_df = df[df['season'] == season]
-        season_result = []
-        for category in season_df['category'].unique():
-            cat_df = season_df[season_df['category'] == category]
-            if len(cat_df) >= 2:
-                x = cat_df[['days_since']].values
-                y = cat_df[['quantity']].values
-                model = LinearRegression().fit(x, y)
-                forecast_day = cat_df['days_since'].max() + 30
-                predicted_units = model.predict([[forecast_day]])[0][0]
-                season_result.append({
-                    "category": category,
-                    "forecast_units": round(predicted_units, 2)
-                })
-        results[season] = season_result
-
-    # === Next Month Forecast (Units) ===
-    today = datetime.today()
-
-    # Get the first day of next month
-    next_month_start = datetime(today.year + (today.month // 12), (today.month % 12) + 1, 1)
-    
-    # Get the last day of next month
-    next_month_end = (next_month_start + pd.offsets.MonthEnd(1)).to_pydatetime()
-
-    forecast_day = (next_month_start - df['date'].min()).days
-    next_month_results = []
-
-    for category in df['category'].unique():
-        cat_df = df[df['category'] == category]
-        if len(cat_df) >= 2:
-            x = cat_df[['days_since']].values
-            y = cat_df[['quantity']].values
-            model = LinearRegression().fit(x, y)
-            predicted_units = model.predict([[forecast_day]])[0][0]
-            next_month_results.append({
-                "category": category,
-                "forecast_units": round(predicted_units, 2)
-            })
-
-    results["Next Month Forecast Range"] = {
-        "start_date": next_month_start.strftime("%Y-%m-%d"),
-        "end_date": next_month_end.strftime("%Y-%m-%d")
-    }
-    results["Next Month"] = next_month_results
 
     return jsonify(results)
 
