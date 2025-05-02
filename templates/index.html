@@ -161,14 +161,25 @@
         type: 'line',
         data: {
           labels: forecastData.dry_season_data.dates,
-          datasets: [{
-            label: 'Dry Season Historical Sales',
-            data: forecastData.dry_season_data.sales,
-            borderColor: 'rgb(255,99,132)',
-            backgroundColor: 'rgba(255,99,132,0.2)',
-            fill: true,
-            tension: 0.3
-          }]
+          datasets: [
+            {
+              label: 'Dry Season Historical Sales',
+              data: forecastData.dry_season_data.sales,
+              borderColor: 'rgb(255,99,132)', // Actual sales color
+              backgroundColor: 'rgba(255,99,132,0.2)', // Actual sales background
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Dry Season Predicted Sales',
+              data: forecastData.dry_forecast_monthly.map(d => d.forecast_sales),
+              borderColor: 'rgb(255,165,0)', // Predicted sales color
+              backgroundColor: 'rgba(255,165,0,0.2)', // Predicted sales background
+              fill: true,
+              tension: 0.3,
+              borderDash: [5, 5] // Dashed line for predicted sales
+            }
+          ]
         }
       });
 
@@ -176,14 +187,25 @@
         type: 'line',
         data: {
           labels: forecastData.rainy_season_data.dates,
-          datasets: [{
-            label: 'Rainy Season Historical Sales',
-            data: forecastData.rainy_season_data.sales,
-            borderColor: 'rgb(54,162,235)',
-            backgroundColor: 'rgba(54,162,235,0.2)',
-            fill: true,
-            tension: 0.3
-          }]
+          datasets: [
+            {
+              label: 'Rainy Season Historical Sales',
+              data: forecastData.rainy_season_data.sales,
+              borderColor: 'rgb(54,162,235)', // Actual sales color
+              backgroundColor: 'rgba(54,162,235,0.2)', // Actual sales background
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Rainy Season Predicted Sales',
+              data: forecastData.rainy_forecast_monthly.map(d => d.forecast_sales),
+              borderColor: 'rgb(30,144,255)', // Predicted sales color
+              backgroundColor: 'rgba(30,144,255,0.2)', // Predicted sales background
+              fill: true,
+              tension: 0.3,
+              borderDash: [5, 5] // Dashed line for predicted sales
+            }
+          ]
         }
       });
 
@@ -195,14 +217,16 @@
         type: 'line',
         data: {
           labels: dryLabels,
-          datasets: [{
-            label: 'Dry Season Forecast Sales',
-            data: dryValues,
-            borderColor: 'rgb(255,165,0)',
-            backgroundColor: 'rgba(255,165,0,0.2)',
-            fill: true,
-            tension: 0.3
-          }]
+          datasets: [
+            {
+              label: 'Dry Season Forecast Sales',
+              data: dryValues,
+              borderColor: 'rgb(255,165,0)', // Forecast color
+              backgroundColor: 'rgba(255,165,0,0.2)', // Forecast background
+              fill: true,
+              tension: 0.3
+            }
+          ]
         }
       });
 
@@ -213,14 +237,16 @@
         type: 'line',
         data: {
           labels: rainyLabels,
-          datasets: [{
-            label: 'Rainy Season Forecast Sales',
-            data: rainyValues,
-            borderColor: 'rgb(30,144,255)',
-            backgroundColor: 'rgba(30,144,255,0.2)',
-            fill: true,
-            tension: 0.3
-          }]
+          datasets: [
+            {
+              label: 'Rainy Season Forecast Sales',
+              data: rainyValues,
+              borderColor: 'rgb(30,144,255)', // Forecast color
+              backgroundColor: 'rgba(30,144,255,0.2)', // Forecast background
+              fill: true,
+              tension: 0.3
+            }
+          ]
         }
       });
     }

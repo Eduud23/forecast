@@ -114,9 +114,11 @@ def forecast_api():
     dry_months = [12, 1, 2, 3, 4, 5]
     rainy_months = [6, 7, 8, 9, 10, 11]
 
+    # Get forecast data for dry and rainy season
     dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season", scale_factor=1.0)
     rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season", scale_factor=1.0)
 
+    # Results to return in the API response
     results = {
         "forecast_data": [
             dry_result["summary"],
