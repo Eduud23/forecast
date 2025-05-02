@@ -62,37 +62,36 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
     total = 0
 
     for forecast_date in forecast_dates:
-    month = forecast_date.month
-    label_date = forecast_date.strftime('%Y-%m')
+        month = forecast_date.month
+        label_date = forecast_date.strftime('%Y-%m')
 
-    month_df = df[df['date'].dt.month == month]
-    if len(month_df) == 0:
+        month_df = df[df['date'].dt.month == month]
+        if len(month_df) == 0:
+            monthly_predictions.append({
+                "date": label_date + "-01",
+                "forecast_sales": None
+            })
+            continue
+
+        month_df = month_df.copy()
+        base_date = month_df['date'].min()
+        month_df['days_since'] = (month_df['date'] - base_date).dt.days
+
+        if len(month_df) == 1:
+            # Use that single value as fallback
+            prediction = month_df['total_php'].iloc[0] * scale_factor
+        else:
+            x = month_df[['days_since']].values
+            y = month_df[['total_php']].values
+            model = LinearRegression().fit(x, y)
+            forecast_day = (forecast_date - base_date).days
+            prediction = model.predict([[forecast_day]])[0][0] * scale_factor
+
         monthly_predictions.append({
             "date": label_date + "-01",
-            "forecast_sales": None
+            "forecast_sales": round(prediction, 2)
         })
-        continue
-
-    month_df = month_df.copy()
-    base_date = month_df['date'].min()
-    month_df['days_since'] = (month_df['date'] - base_date).dt.days
-
-    if len(month_df) == 1:
-        # Use that single value as fallback
-        prediction = month_df['total_php'].iloc[0] * scale_factor
-    else:
-        x = month_df[['days_since']].values
-        y = month_df[['total_php']].values
-        model = LinearRegression().fit(x, y)
-        forecast_day = (forecast_date - base_date).days
-        prediction = model.predict([[forecast_day]])[0][0] * scale_factor
-
-    monthly_predictions.append({
-        "date": label_date + "-01",
-        "forecast_sales": round(prediction, 2)
-    })
-    total += prediction
-
+        total += prediction
 
     last_values = df[df['date'].dt.month.isin(months)].sort_values('date')['total_php'].values
     last_actual = last_values[-1] if len(last_values) > 0 else 0
