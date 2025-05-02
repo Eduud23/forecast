@@ -88,10 +88,16 @@
 
     <!-- Category Forecast Chart -->
     <div class="mb-4">
-      <h3 class="section-header">Forecast by Category</h3>
+      <h3 class="section-header">Forecast by Category (Total for Each Season)</h3>
       <div class="chart-wrapper">
         <canvas id="category-chart"></canvas>
       </div>
+    </div>
+
+    <!-- Category Breakdown by Season -->
+    <div id="category-summary" class="mb-4">
+      <h3 class="section-header">Category Breakdown (By Season)</h3>
+      <div id="category-summary-content"></div>
     </div>
   </div>
 
@@ -113,6 +119,7 @@
         const categoryResponse = await fetch('/forecast-units');
         const categoryData = await categoryResponse.json();
         renderCategoryChart(categoryData);
+        renderCategorySummary(categoryData);
       } catch (error) {
         console.error('Error fetching forecast data:', error);
       }
@@ -247,6 +254,43 @@
           }
         }
       });
+    }
+
+    function renderCategorySummary(categoryData) {
+      const container = document.getElementById('category-summary-content');
+      container.innerHTML = '';
+      
+      for (const season in categoryData) {
+        const seasonData = categoryData[season];
+        const seasonDiv = document.createElement('div');
+        seasonDiv.className = 'mb-4';
+        seasonDiv.innerHTML = `<h4>${season}</h4>`;
+        
+        const table = document.createElement('table');
+        table.className = 'table table-striped';
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Forecast Quantity</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        `;
+        const tbody = table.querySelector('tbody');
+        
+        seasonData.forEach(item => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${item.category}</td>
+            <td>${item.forecast_quantity}</td>
+          `;
+          tbody.appendChild(row);
+        });
+        
+        seasonDiv.appendChild(table);
+        container.appendChild(seasonDiv);
+      }
     }
 
     window.onload = fetchForecastData;

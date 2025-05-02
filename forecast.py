@@ -58,7 +58,6 @@ def generate_forecast_dates(months, num_years=1):
     return forecast_dates
 
 def seasonal_forecast(df, months, label, scale_factor=1.0):
-    # Prepare full model
     df = df.copy()
     df['days_since'] = (df['date'] - df['date'].min()).dt.days
 
@@ -68,7 +67,7 @@ def seasonal_forecast(df, months, label, scale_factor=1.0):
     model_sales = LinearRegression().fit(x, y_sales)
     model_quantity = LinearRegression().fit(x, y_quantity)
 
-    # Forecast for historical months (predictions for past months)
+    # Historical predictions
     historical_predictions = []
     for month in months:
         historical_data = df[df['date'].dt.month == month]
@@ -83,26 +82,23 @@ def seasonal_forecast(df, months, label, scale_factor=1.0):
                 "forecast_quantity": round(prediction_quantity, 2)
             })
 
-    # Forecast next 12 months of the same season
+    # Daily forecasts for next 6 months of the season
     last_date = df['date'].max()
-    forecast_months = []
-    current = last_date.replace(day=1)
-
-    while len(forecast_months) < 12:
-        current = current + pd.DateOffset(months=1)
-        if current.month in months:
-            forecast_months.append(current)
+    start_date = last_date + pd.Timedelta(days=1)
+    end_date = start_date + pd.DateOffset(months=6)
+    future_dates = pd.date_range(start=start_date, end=end_date - pd.Timedelta(days=1))
+    future_dates = [d for d in future_dates if d.month in months]
 
     future_predictions = []
     total_sales = 0
     total_quantity = 0
 
-    for forecast_date in forecast_months:
+    for forecast_date in future_dates:
         days_since = (forecast_date - df['date'].min()).days
         prediction_sales = model_sales.predict([[days_since]])[0][0] * scale_factor
         prediction_quantity = model_quantity.predict([[days_since]])[0][0]
 
-        prediction_sales = max(0, prediction_sales)  # ensure no negative forecasts
+        prediction_sales = max(0, prediction_sales)
         prediction_quantity = max(0, prediction_quantity)
 
         future_predictions.append({
