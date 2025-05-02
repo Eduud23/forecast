@@ -155,6 +155,7 @@
       document.getElementById('drySeasonForecast').children[0].textContent = `${dry.forecast_sales} (${dry.trend})`;
       document.getElementById('rainySeasonForecast').children[0].textContent = `${rainy.forecast_sales} (${rainy.trend})`;
 
+
       // === Historical Charts ===
       new Chart(document.getElementById('drySeasonHistoricalChart').getContext('2d'), {
         type: 'line',
