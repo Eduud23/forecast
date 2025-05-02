@@ -78,7 +78,6 @@ def seasonal_monthly_forecast(df, months, label, scale_factor=1.0):
         month_df['days_since'] = (month_df['date'] - base_date).dt.days
 
         if len(month_df) == 1:
-            # Use that single value as fallback
             prediction = month_df['total_php'].iloc[0] * scale_factor
         else:
             x = month_df[['days_since']].values
@@ -114,11 +113,9 @@ def forecast_api():
     dry_months = [12, 1, 2, 3, 4, 5]
     rainy_months = [6, 7, 8, 9, 10, 11]
 
-    # Get forecast data for dry and rainy season
-    dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season", scale_factor=1.0)
-    rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season", scale_factor=1.0)
+    dry_result = seasonal_monthly_forecast(df, dry_months, "🌞 Dry Season")
+    rainy_result = seasonal_monthly_forecast(df, rainy_months, "🌧️ Rainy Season")
 
-    # Results to return in the API response
     results = {
         "forecast_data": [
             dry_result["summary"],
