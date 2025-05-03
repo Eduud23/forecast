@@ -69,18 +69,18 @@
       try {
         const res = await fetch('/category-trends');
         const data = await res.json();
-
+  
         renderSeason(data.dry_season_trends, 'dry');
         renderSeason(data.rainy_season_trends, 'rainy');
       } catch (err) {
         console.error('Error loading trends:', err);
       }
     }
-
+  
     function renderSeason(trends, prefix) {
       const summaryContainer = document.getElementById(`${prefix}-summary`);
       const chartsContainer = document.getElementById(`${prefix}-charts`);
-
+  
       trends.forEach((trend, index) => {
         // Summary card
         const col = document.createElement('div');
@@ -94,7 +94,7 @@
           </div>
         `;
         summaryContainer.appendChild(col);
-
+  
         // Only plot increasing trends
         if (trend.trend === 'Increasing') {
           const chartCard = document.createElement('div');
@@ -108,12 +108,12 @@
             </div>
           `;
           chartsContainer.appendChild(chartCard);
-
+  
           renderLineChart(`${prefix}-chart-${index}`, trend.dates, trend.quantities);
         }
       });
     }
-
+  
     function renderLineChart(canvasId, labels, data) {
       const ctx = document.getElementById(canvasId).getContext('2d');
       new Chart(ctx, {
@@ -144,9 +144,10 @@
         }
       });
     }
-
+  
     window.onload = loadCategoryTrends;
   </script>
+  
 </body>
 
 </html>

@@ -103,6 +103,7 @@ def category_trends():
     return jsonify(response)
 
 
+
 # === FRONT PAGE ===
 @app.route('/')
 def index():
