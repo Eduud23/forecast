@@ -65,8 +65,9 @@ def forecast_category_trends(df, season_months):
 
         for forecast_date in forecast_days:
             days_since = (forecast_date - cat_df['date'].min()).days
-            predicted = model.predict([[days_since]])[0][0]
+            predicted = model.predict(pd.DataFrame({'days_since': [days_since]}))[0]
             total_forecast += max(0, predicted)
+
 
         past_total = cat_df['quantity'].sum()
         trend_status = 'Increasing' if total_forecast > past_total else 'Decreasing'
