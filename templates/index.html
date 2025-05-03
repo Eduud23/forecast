@@ -80,7 +80,7 @@
     function renderSeason(trends, prefix) {
       const summaryContainer = document.getElementById(`${prefix}-summary`);
       const chartsContainer = document.getElementById(`${prefix}-charts`);
-  
+
       trends.forEach((trend, index) => {
         // Summary card
         const col = document.createElement('div');
@@ -94,25 +94,24 @@
           </div>
         `;
         summaryContainer.appendChild(col);
-  
-        // Only plot increasing trends
-        if (trend.trend === 'Increasing') {
-          const chartCard = document.createElement('div');
-          chartCard.className = 'col-md-6';
-          chartCard.innerHTML = `
-            <div class="card p-3">
-              <h5>${trend.category}</h5>
-              <div class="chart-container">
-                <canvas id="${prefix}-chart-${index}"></canvas>
-              </div>
+
+        // ✅ Plot all trends, not just increasing
+        const chartCard = document.createElement('div');
+        chartCard.className = 'col-md-6';
+        chartCard.innerHTML = `
+          <div class="card p-3">
+            <h5>${trend.category} (${trend.trend})</h5>
+            <div class="chart-container">
+              <canvas id="${prefix}-chart-${index}"></canvas>
             </div>
-          `;
-          chartsContainer.appendChild(chartCard);
-  
-          renderLineChart(`${prefix}-chart-${index}`, trend.dates, trend.quantities);
-        }
+          </div>
+        `;
+        chartsContainer.appendChild(chartCard);
+
+        renderLineChart(`${prefix}-chart-${index}`, trend.dates, trend.quantities);
       });
     }
+
   
     function renderLineChart(canvasId, labels, data) {
       const ctx = document.getElementById(canvasId).getContext('2d');
