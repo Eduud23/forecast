@@ -45,11 +45,14 @@ def get_sales_data():
 
 def forecast_category_trends(df, season_months):
     trend_data = []
+    season_name = 'Dry Season' if season_months[0] in [12, 1, 2, 3, 4, 5] else 'Rainy Season'
 
     for category in df['category'].unique():
+        # Filter only dates in current season months
         cat_df = df[(df['category'] == category) & (df['date'].dt.month.isin(season_months))]
+
         if len(cat_df) < 5:
-            continue  # Skip if not enough data
+            continue  # Skip if not enough seasonal data
 
         cat_df = cat_df.copy()
         cat_df['days_since'] = (cat_df['date'] - cat_df['date'].min()).dt.days
@@ -57,7 +60,7 @@ def forecast_category_trends(df, season_months):
         y = cat_df[['quantity']]
         model = LinearRegression().fit(x, y)
 
-        # Forecast next 6 months for this season
+        # Generate forecast dates for next 6 months (but only using same season months)
         last_date = cat_df['date'].max()
         forecast_days = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=180)
         forecast_days = [d for d in forecast_days if d.month in season_months]
@@ -66,15 +69,14 @@ def forecast_category_trends(df, season_months):
         for forecast_date in forecast_days:
             days_since = (forecast_date - cat_df['date'].min()).days
             predicted = model.predict(pd.DataFrame({'days_since': [days_since]}))[0]
-            total_forecast += max(0, predicted)
-
+            total_forecast += max(0, predicted[0])  # Avoid negative predictions
 
         past_total = cat_df['quantity'].sum()
         trend_status = 'Increasing' if total_forecast > past_total else 'Decreasing'
 
         trend_data.append({
             'category': category,
-            'season': 'Dry Season' if season_months[0] in [12, 1, 2, 3, 4, 5] else 'Rainy Season',
+            'season': season_name,
             'historical_quantity': float(past_total),
             'forecast_quantity': float(total_forecast),
             'trend': trend_status,
@@ -84,7 +86,7 @@ def forecast_category_trends(df, season_months):
 
     return trend_data
 
-# === API ROUTE ===
+# === API ROUTES ===
 @app.route('/category-trends', methods=['GET'])
 def category_trends():
     df = get_sales_data()
