@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 import json
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from sklearn.linear_model import LinearRegression
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -13,7 +13,6 @@ CORS(app)
 
 # === FIREBASE SETUP ===
 firebase_key_json = os.environ.get("FIREBASE_KEY_JSON")
-
 if not firebase_key_json:
     raise ValueError("FIREBASE_KEY_JSON env var is not set")
 
@@ -39,183 +38,76 @@ def get_sales_data():
 
     df = pd.DataFrame(data)
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    df = df.dropna(subset=['date'])
-    df = df.sort_values('date')
-    df['season'] = df['date'].dt.month.apply(
-        lambda m: "Dry Season" if m in [12, 1, 2, 3, 4, 5] else "Rainy Season"
-    )
+    df.dropna(subset=['date'], inplace=True)
+    df['season'] = df['date'].dt.month.apply(lambda m: 'Dry Season' if m in [12, 1, 2, 3, 4, 5] else 'Rainy Season')
     return df
 
-def generate_forecast_dates(months, num_years=1):
-    forecast_dates = []
-    today = datetime.today()
-    current_year = today.year
-    for y in range(num_years):
-        for m in months:
-            forecast_date = datetime(current_year + y, m, 1)
-            if forecast_date > today:
-                forecast_dates.append(forecast_date)
-    return forecast_dates
 
-def seasonal_forecast(df, months, label, scale_factor=1.0):
-    df = df.copy()
-    df['days_since'] = (df['date'] - df['date'].min()).dt.days
+def forecast_category_trends(df, season_months):
+    trend_data = []
 
-    x = df[['days_since']].values
-    y_sales = df[['total_php']].values
-    y_quantity = df[['quantity']].values
-    model_sales = LinearRegression().fit(x, y_sales)
-    model_quantity = LinearRegression().fit(x, y_quantity)
+    for category in df['category'].unique():
+        cat_df = df[(df['category'] == category) & (df['date'].dt.month.isin(season_months))]
+        if len(cat_df) < 5:
+            continue  # not enough data to forecast
 
-    # Historical predictions
-    historical_predictions = []
-    for month in months:
-        historical_data = df[df['date'].dt.month == month]
-        if len(historical_data) > 0:
-            forecast_date = historical_data['date'].min()
-            days_since = (forecast_date - df['date'].min()).days
-            prediction_sales = model_sales.predict([[days_since]])[0][0] * scale_factor
-            prediction_quantity = model_quantity.predict([[days_since]])[0][0]
-            historical_predictions.append({
-                "date": forecast_date.strftime('%Y-%m-%d'),
-                "forecast_sales": round(prediction_sales, 2),
-                "forecast_quantity": round(prediction_quantity, 2)
-            })
+        cat_df = cat_df.copy()
+        cat_df['days_since'] = (cat_df['date'] - cat_df['date'].min()).dt.days
+        x = cat_df[['days_since']]
+        y = cat_df[['quantity']]
+        model = LinearRegression().fit(x, y)
 
-    # Daily forecasts for next 6 months of the season
-    last_date = df['date'].max()
-    start_date = last_date + pd.Timedelta(days=1)
-    end_date = start_date + pd.DateOffset(months=6)
-    future_dates = pd.date_range(start=start_date, end=end_date - pd.Timedelta(days=1))
-    future_dates = [d for d in future_dates if d.month in months]
+        # Forecast next 6 months
+        last_date = cat_df['date'].max()
+        future_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=180)
+        future_dates = [d for d in future_dates if d.month in season_months]
+        total_forecast = 0
 
-    future_predictions = []
-    total_sales = 0
-    total_quantity = 0
+        for date in future_dates:
+            days_since = (date - cat_df['date'].min()).days
+            predicted_qty = model.predict([[days_since]])[0][0]
+            total_forecast += max(predicted_qty, 0)
 
-    for forecast_date in future_dates:
-        days_since = (forecast_date - df['date'].min()).days
-        prediction_sales = model_sales.predict([[days_since]])[0][0] * scale_factor
-        prediction_quantity = model_quantity.predict([[days_since]])[0][0]
+        past_total = cat_df['quantity'].sum()
+        trend_status = 'Increasing' if total_forecast > past_total else 'Decreasing'
 
-        prediction_sales = max(0, prediction_sales)
-        prediction_quantity = max(0, prediction_quantity)
-
-        future_predictions.append({
-            "date": forecast_date.strftime('%Y-%m-%d'),
-            "forecast_sales": round(prediction_sales, 2),
-            "forecast_quantity": round(prediction_quantity, 2)
+        trend_data.append({
+            'category': category,
+            'season': 'Dry Season' if season_months[0] in [12, 1, 2, 3, 4, 5] else 'Rainy Season',
+            'historical_quantity': round(past_total, 2),
+            'forecast_quantity': round(total_forecast, 2),
+            'trend': trend_status,
+            'dates': cat_df['date'].dt.strftime('%Y-%m-%d').tolist(),
+            'quantities': cat_df['quantity'].tolist()
         })
-        total_sales += prediction_sales
-        total_quantity += prediction_quantity
 
-    trend_sales = "Increasing" if total_sales > df[df['date'].dt.month.isin(months)]['total_php'].sum() else "Decreasing"
-    trend_quantity = "Increasing" if total_quantity > df[df['date'].dt.month.isin(months)]['quantity'].sum() else "Decreasing"
+    return trend_data
 
-    return {
-        "summary": {
-            "label": label,
-            "forecast_sales": round(total_sales, 2),
-            "forecast_quantity": round(total_quantity, 2),
-            "trend_sales": trend_sales,
-            "trend_quantity": trend_quantity
-        },
-        "historical_predictions": historical_predictions,
-        "future_predictions": future_predictions
-    }
 
-# === API ROUTES ===
-@app.route('/forecast', methods=['GET'])
-def forecast_api():
+# === API ROUTE TO RETURN CATEGORY TRENDS BY SEASON ===
+@app.route('/category-trends', methods=['GET'])
+def category_trends():
     df = get_sales_data()
 
     dry_months = [12, 1, 2, 3, 4, 5]
     rainy_months = [6, 7, 8, 9, 10, 11]
 
-    dry_result = seasonal_forecast(df, dry_months, "🌞 Dry Season")
-    rainy_result = seasonal_forecast(df, rainy_months, "🌧️ Rainy Season")
+    dry_trends = forecast_category_trends(df, dry_months)
+    rainy_trends = forecast_category_trends(df, rainy_months)
 
-    results = {
-        "forecast_data": [
-            dry_result["summary"],
-            rainy_result["summary"]
-        ],
-        "dry_season_data": {
-            "dates": df[df['season'] == "Dry Season"]['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": df[df['season'] == "Dry Season"]['total_php'].tolist(),
-            "quantity": df[df['season'] == "Dry Season"]['quantity'].tolist()
-        },
-        "rainy_season_data": {
-            "dates": df[df['season'] == "Rainy Season"]['date'].dt.strftime('%Y-%m-%d').tolist(),
-            "sales": df[df['season'] == "Rainy Season"]['total_php'].tolist(),
-            "quantity": df[df['season'] == "Rainy Season"]['quantity'].tolist()
-        },
-        "dry_forecast_monthly": dry_result["future_predictions"],
-        "rainy_forecast_monthly": rainy_result["future_predictions"],
-        "dry_historical_predictions": dry_result["historical_predictions"],
-        "rainy_historical_predictions": rainy_result["historical_predictions"]
+    response = {
+        "dry_season_trends": dry_trends,
+        "rainy_season_trends": rainy_trends
     }
 
-    return jsonify(results)
+    return jsonify(response)
 
-@app.route('/forecast-units', methods=['GET'])
-def forecast_units_api():
-    # This is to fetch forecast units by category, similar to how it is done in sales data forecasting
-    df = get_sales_data()
 
-    results = {}
-
-    for season in ['Dry Season', 'Rainy Season']:
-        season_df = df[df['season'] == season]
-        season_result = []
-
-        for category in season_df['category'].unique():
-            cat_df = season_df[season_df['category'] == category]
-            cat_df = cat_df.copy()
-            cat_df['days_since'] = (cat_df['date'] - cat_df['date'].min()).dt.days
-            x = cat_df[['days_since']].values
-            y_quantity = cat_df[['quantity']].values
-            y_sales = cat_df[['total_php']].values
-            model_quantity = LinearRegression().fit(x, y_quantity)
-            model_sales = LinearRegression().fit(x, y_sales)
-
-            # Forecast for next 12 months
-            last_date = cat_df['date'].max()
-            forecast_months = []
-            current = last_date.replace(day=1)
-
-            while len(forecast_months) < 12:
-                current = current + pd.DateOffset(months=1)
-                if current.month in [12, 1, 2, 3, 4, 5]:  # Adjust for the relevant months
-                    forecast_months.append(current)
-
-            category_result = []
-            total_quantity = 0
-            total_sales = 0
-
-            for forecast_date in forecast_months:
-                days_since = (forecast_date - cat_df['date'].min()).days
-                forecast_quantity = model_quantity.predict([[days_since]])[0][0]
-                forecast_sales = model_sales.predict([[days_since]])[0][0]
-
-                forecast_quantity = max(0, forecast_quantity)
-                forecast_sales = max(0, forecast_sales)
-
-                category_result.append({
-                    "category": category,
-                    "forecast_quantity": round(forecast_quantity, 2),
-                    "forecast_sales": round(forecast_sales, 2)
-                })
-                total_quantity += forecast_quantity
-                total_sales += forecast_sales
-
-            results[season] = category_result
-
-    return jsonify(results)
-
+# === FRONT PAGE ===
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 if __name__ == '__main__':
     app.run(debug=True)

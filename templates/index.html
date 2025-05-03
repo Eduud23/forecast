@@ -1,10 +1,10 @@
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sales Forecast Dashboard</title>
-  <!-- Bootstrap CSS -->
+  <title>Category Forecast Trends</title>
   <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -21,217 +21,112 @@
       margin-bottom: 20px;
     }
 
-    h1,
-    h3,
-    h5 {
+    h1, h3, h4 {
       color: #333;
     }
 
-    .forecast-summary-card {
-      background-color: #ffffff;
-      border-left: 5px solid #007bff;
-    }
-
-    .forecast-summary-card h5 {
-      color: #007bff;
-    }
-
-    .chart-wrapper {
+    .chart-container {
       position: relative;
-      width: 100%;
       height: 300px;
-      margin-bottom: 30px;
+    }
+
+    .trend-card {
+      border-left: 5px solid #007bff;
+      background: #fff;
+      padding: 15px;
     }
 
     .section-header {
-      margin-bottom: 15px;
+      margin: 30px 0 15px;
       font-weight: 600;
     }
 
-    @media (max-width: 768px) {
-      .forecast-summary-card {
-        margin-bottom: 15px;
-      }
-
-      .chart-wrapper {
-        height: 250px;
-      }
+    canvas {
+      background: #fff;
+      padding: 10px;
+      border-radius: 6px;
     }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <h1 class="text-center mb-4">Sales & Quantity Forecast</h1>
+    <h1 class="text-center mb-5">📊 Sales Forecast by Category and Season</h1>
 
-    <!-- Forecast Summary -->
-    <div id="forecast-container" class="mb-4">
-      <h3 class="section-header">Forecast Summary</h3>
-      <div id="forecast-summary" class="row"></div>
-    </div>
+    <!-- Dry Season Summary and Charts -->
+    <h3 class="section-header">🌞 Dry Season Trends</h3>
+    <div id="dry-summary" class="row"></div>
+    <div id="dry-charts" class="row"></div>
 
-    <!-- Dry Season Chart -->
-    <div class="mb-4">
-      <h3 class="section-header">Dry Season Chart</h3>
-      <div class="chart-wrapper">
-        <canvas id="dry-season-chart"></canvas>
-      </div>
-    </div>
-
-    <!-- Rainy Season Chart -->
-    <div class="mb-4">
-      <h3 class="section-header">Rainy Season Chart</h3>
-      <div class="chart-wrapper">
-        <canvas id="rainy-season-chart"></canvas>
-      </div>
-    </div>
-
-    <!-- Category Forecast Chart -->
-    <div class="mb-4">
-      <h3 class="section-header">Forecast by Category (Total for Each Season)</h3>
-      <div class="chart-wrapper">
-        <canvas id="category-chart"></canvas>
-      </div>
-    </div>
-
-    <!-- Category Breakdown by Season -->
-    <div id="category-summary" class="mb-4">
-      <h3 class="section-header">Category Breakdown (By Season)</h3>
-      <div id="category-summary-content"></div>
-    </div>
+    <!-- Rainy Season Summary and Charts -->
+    <h3 class="section-header">🌧️ Rainy Season Trends</h3>
+    <div id="rainy-summary" class="row"></div>
+    <div id="rainy-charts" class="row"></div>
   </div>
 
-  <!-- Bootstrap JS -->
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-
   <script>
-    async function fetchForecastData() {
+    async function loadCategoryTrends() {
       try {
-        const response = await fetch('/forecast');
-        const data = await response.json();
+        const res = await fetch('/category-trends');
+        const data = await res.json();
 
-        renderForecastSummary(data.forecast_data);
-        renderCharts(data.dry_season_data, 'dry-season-chart', 'Dry Season');
-        renderCharts(data.rainy_season_data, 'rainy-season-chart', 'Rainy Season');
-
-        const categoryResponse = await fetch('/forecast-units');
-        const categoryData = await categoryResponse.json();
-        renderCategoryChart(categoryData);
-        renderCategorySummary(categoryData);
-      } catch (error) {
-        console.error('Error fetching forecast data:', error);
+        renderSeason(data.dry_season_trends, 'dry');
+        renderSeason(data.rainy_season_trends, 'rainy');
+      } catch (err) {
+        console.error('Error loading trends:', err);
       }
     }
 
-    function renderForecastSummary(forecastData) {
-      const container = document.getElementById('forecast-summary');
-      container.innerHTML = '';
-      forecastData.forEach(forecast => {
-        const div = document.createElement('div');
-        div.className = 'col-md-6';
-        div.innerHTML = `
-          <div class="card forecast-summary-card p-3">
-            <h5>${forecast.label}</h5>
-            <p>Total Sales Forecast: ₱${forecast.forecast_sales}</p>
-            <p>Total Quantity Forecast: ${forecast.forecast_quantity}</p>
-            <p>Sales Trend: ${forecast.trend_sales}</p>
-            <p>Quantity Trend: ${forecast.trend_quantity}</p>
-          </div>`;
-        container.appendChild(div);
+    function renderSeason(trends, prefix) {
+      const summaryContainer = document.getElementById(`${prefix}-summary`);
+      const chartsContainer = document.getElementById(`${prefix}-charts`);
+
+      trends.forEach((trend, index) => {
+        // Summary card
+        const col = document.createElement('div');
+        col.className = 'col-md-6';
+        col.innerHTML = `
+          <div class="card trend-card">
+            <h5>📦 ${trend.category}</h5>
+            <p><strong>Forecast Quantity:</strong> ${trend.forecast_quantity}</p>
+            <p><strong>Historical Quantity:</strong> ${trend.historical_quantity}</p>
+            <p><strong>Trend:</strong> ${trend.trend}</p>
+          </div>
+        `;
+        summaryContainer.appendChild(col);
+
+        // Only plot increasing trends
+        if (trend.trend === 'Increasing') {
+          const chartCard = document.createElement('div');
+          chartCard.className = 'col-md-6';
+          chartCard.innerHTML = `
+            <div class="card p-3">
+              <h5>${trend.category}</h5>
+              <div class="chart-container">
+                <canvas id="${prefix}-chart-${index}"></canvas>
+              </div>
+            </div>
+          `;
+          chartsContainer.appendChild(chartCard);
+
+          renderLineChart(`${prefix}-chart-${index}`, trend.dates, trend.quantities);
+        }
       });
     }
 
-    function renderCharts(seasonData, chartId, seasonLabel) {
-      const monthlyData = {};
-
-      for (let i = 0; i < seasonData.dates.length; i++) {
-        const date = seasonData.dates[i];
-        const month = date.slice(0, 7);
-
-        if (!monthlyData[month]) {
-          monthlyData[month] = { sales: 0, quantity: 0 };
-        }
-
-        monthlyData[month].sales += seasonData.sales[i];
-        monthlyData[month].quantity += seasonData.quantity[i];
-      }
-
-      const months = Object.keys(monthlyData);
-      const sales = months.map(month => monthlyData[month].sales);
-      const quantity = months.map(month => monthlyData[month].quantity);
-
-      const ctx = document.getElementById(chartId).getContext('2d');
-      const chartData = {
-        labels: months,
-        datasets: [
-          {
-            label: `${seasonLabel} - Sales`,
-            data: sales,
-            borderColor: 'rgba(75, 192, 192, 1)',
-            fill: false
-          },
-          {
-            label: `${seasonLabel} - Quantity`,
-            data: quantity,
-            borderColor: 'rgba(153, 102, 255, 1)',
-            fill: false
-          }
-        ]
-      };
-
+    function renderLineChart(canvasId, labels, data) {
+      const ctx = document.getElementById(canvasId).getContext('2d');
       new Chart(ctx, {
         type: 'line',
-        data: chartData,
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              title: {
-                display: true,
-                text: 'Month'
-              }
-            },
-            y: {
-              title: {
-                display: true,
-                text: 'Amount'
-              }
-            }
-          }
-        }
-      });
-    }
-
-    function renderCategoryChart(categoryData) {
-      const categoryMap = new Map();
-
-      for (const season in categoryData) {
-        categoryData[season].forEach(item => {
-          const category = item.category;
-          if (!categoryMap.has(category)) {
-            categoryMap.set(category, 0);
-          }
-          categoryMap.set(category, categoryMap.get(category) + item.forecast_quantity);
-        });
-      }
-
-      const categories = Array.from(categoryMap.keys());
-      const forecastQuantities = Array.from(categoryMap.values());
-
-      const ctx = document.getElementById('category-chart').getContext('2d');
-      new Chart(ctx, {
-        type: 'bar',
         data: {
-          labels: categories,
+          labels: labels,
           datasets: [{
-            label: 'Forecast Quantity by Category',
-            data: forecastQuantities,
-            backgroundColor: 'rgba(255, 159, 64, 0.6)',
-            borderColor: 'rgba(255, 159, 64, 1)',
-            borderWidth: 1
+            label: 'Quantity Sold',
+            data: data,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            fill: true,
+            tension: 0.3
           }]
         },
         options: {
@@ -239,61 +134,18 @@
           maintainAspectRatio: false,
           scales: {
             x: {
-              title: {
-                display: true,
-                text: 'Category'
-              }
+              title: { display: true, text: 'Date' }
             },
             y: {
               beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Forecast Quantity'
-              }
+              title: { display: true, text: 'Quantity' }
             }
           }
         }
       });
     }
 
-    function renderCategorySummary(categoryData) {
-      const container = document.getElementById('category-summary-content');
-      container.innerHTML = '';
-      
-      for (const season in categoryData) {
-        const seasonData = categoryData[season];
-        const seasonDiv = document.createElement('div');
-        seasonDiv.className = 'mb-4';
-        seasonDiv.innerHTML = `<h4>${season}</h4>`;
-        
-        const table = document.createElement('table');
-        table.className = 'table table-striped';
-        table.innerHTML = `
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th>Forecast Quantity</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        `;
-        const tbody = table.querySelector('tbody');
-        
-        seasonData.forEach(item => {
-          const row = document.createElement('tr');
-          row.innerHTML = `
-            <td>${item.category}</td>
-            <td>${item.forecast_quantity}</td>
-          `;
-          tbody.appendChild(row);
-        });
-        
-        seasonDiv.appendChild(table);
-        container.appendChild(seasonDiv);
-      }
-    }
-
-    window.onload = fetchForecastData;
+    window.onload = loadCategoryTrends;
   </script>
 </body>
 
