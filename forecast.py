@@ -45,7 +45,8 @@ def get_sales_data():
 
 def forecast_category_trends(df, season_months):
     trend_data = []
-    season_name = 'Dry Season' if season_months[0] in [12, 1, 2, 3, 4, 5] else 'Rainy Season'
+    is_dry_season = season_months[0] in [12, 1, 2, 3, 4, 5]
+    season_name = 'Dry Season' if is_dry_season else 'Rainy Season'
 
     for category in df['category'].unique():
         # Filter only historical data for this category in this season
@@ -60,24 +61,26 @@ def forecast_category_trends(df, season_months):
         y = cat_df[['quantity']]
         model = LinearRegression().fit(x, y)
 
-        # Determine the next upcoming season year window
+        # === Determine next season's forecast window ===
         last_date = df['date'].max()
         current_year = last_date.year
-        if season_name == 'Rainy Season':
-            # If we are past November, forecast next year's rainy season
-            if last_date.month > 11:
-                forecast_start_year = current_year + 1
+
+        if is_dry_season:
+            # Dry season: December to May
+            if last_date.month > 5:  # If we're past May, next dry starts December this year
+                forecast_start = datetime(current_year, 12, 1)
+                forecast_end = datetime(current_year + 1, 5, 31)
             else:
-                forecast_start_year = current_year if last_date.month < 6 else current_year + 1
-            forecast_start = datetime(forecast_start_year, 6, 1)
-            forecast_end = datetime(forecast_start_year, 11, 30)
+                forecast_start = datetime(current_year + 1, 12, 1)
+                forecast_end = datetime(current_year + 2, 5, 31)
         else:
-            if last_date.month > 5:
-                forecast_start_year = current_year + 1
+            # Rainy season: June to November
+            if last_date.month < 6:  # Before June
+                forecast_start = datetime(current_year, 6, 1)
+                forecast_end = datetime(current_year, 11, 30)
             else:
-                forecast_start_year = current_year
-            forecast_start = datetime(forecast_start_year, 12, 1)
-            forecast_end = datetime(forecast_start_year + 1, 5, 31)
+                forecast_start = datetime(current_year + 1, 6, 1)
+                forecast_end = datetime(current_year + 1, 11, 30)
 
         forecast_days = pd.date_range(start=forecast_start, end=forecast_end)
         forecast_days = [d for d in forecast_days if d.month in season_months]
