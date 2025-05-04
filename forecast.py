@@ -48,11 +48,11 @@ def forecast_category_trends(df, season_months):
     season_name = 'Dry Season' if season_months[0] in [12, 1, 2, 3, 4, 5] else 'Rainy Season'
 
     for category in df['category'].unique():
-        # Filter only dates in current season months
+        # Filter only historical data for this category in this season
         cat_df = df[(df['category'] == category) & (df['date'].dt.month.isin(season_months))]
 
         if len(cat_df) < 5:
-            continue  # Skip if not enough seasonal data
+            continue  # Skip if not enough data
 
         cat_df = cat_df.copy()
         cat_df['days_since'] = (cat_df['date'] - cat_df['date'].min()).dt.days
@@ -60,16 +60,33 @@ def forecast_category_trends(df, season_months):
         y = cat_df[['quantity']]
         model = LinearRegression().fit(x, y)
 
-        # Generate forecast dates for next 6 months (but only using same season months)
-        last_date = cat_df['date'].max()
-        forecast_days = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=180)
-        forecast_days = [d for d in forecast_days if d.month in season_months]
-        total_forecast = 0
+        # Determine the next upcoming season year window
+        last_date = df['date'].max()
+        current_year = last_date.year
+        if season_name == 'Rainy Season':
+            # If we are past November, forecast next year's rainy season
+            if last_date.month > 11:
+                forecast_start_year = current_year + 1
+            else:
+                forecast_start_year = current_year if last_date.month < 6 else current_year + 1
+            forecast_start = datetime(forecast_start_year, 6, 1)
+            forecast_end = datetime(forecast_start_year, 11, 30)
+        else:
+            if last_date.month > 5:
+                forecast_start_year = current_year + 1
+            else:
+                forecast_start_year = current_year
+            forecast_start = datetime(forecast_start_year, 12, 1)
+            forecast_end = datetime(forecast_start_year + 1, 5, 31)
 
+        forecast_days = pd.date_range(start=forecast_start, end=forecast_end)
+        forecast_days = [d for d in forecast_days if d.month in season_months]
+
+        total_forecast = 0
         for forecast_date in forecast_days:
             days_since = (forecast_date - cat_df['date'].min()).days
             predicted = model.predict(pd.DataFrame({'days_since': [days_since]}))[0]
-            total_forecast += max(0, predicted[0])  # Avoid negative predictions
+            total_forecast += max(0, predicted[0])
 
         past_total = cat_df['quantity'].sum()
         trend_status = 'Increasing' if total_forecast > past_total else 'Decreasing'
