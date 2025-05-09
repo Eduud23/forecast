@@ -78,71 +78,93 @@
     }
   
     function renderSeason(trends, prefix) {
-      const summaryContainer = document.getElementById(`${prefix}-summary`);
-      const chartsContainer = document.getElementById(`${prefix}-charts`);
+    const summaryContainer = document.getElementById(`${prefix}-summary`);
+    const chartsContainer = document.getElementById(`${prefix}-charts`);
 
-      trends.forEach((trend, index) => {
-        // Summary card
-        const col = document.createElement('div');
-        col.className = 'col-md-6';
-        col.innerHTML = `
-          <div class="card trend-card">
-            <h5>📦 ${trend.category}</h5>
-            <p><strong>Forecast Quantity:</strong> ${trend.forecast_quantity}</p>
-            <p><strong>Historical Quantity:</strong> ${trend.historical_quantity}</p>
-            <p><strong>Trend:</strong> ${trend.trend}</p>
+    trends.forEach((trend, index) => {
+      // Summary card with revenue
+      const col = document.createElement('div');
+      col.className = 'col-md-6';
+      col.innerHTML = `
+        <div class="card trend-card">
+          <h5>📦 ${trend.category}</h5>
+          <p><strong>Forecast Quantity:</strong> ${trend.forecast_quantity.toFixed(0)}</p>
+          <p><strong>Historical Quantity:</strong> ${trend.historical_quantity.toFixed(0)}</p>
+          <p><strong>Forecast Revenue (₱):</strong> ${trend.forecast_total_php.toFixed(2)}</p>
+          <p><strong>Historical Revenue (₱):</strong> ${trend.historical_total_php.toFixed(2)}</p>
+          <p><strong>Trend:</strong> ${trend.trend}</p>
+        </div>
+      `;
+      summaryContainer.appendChild(col);
+
+      // Chart card with quantity and revenue
+      const chartCard = document.createElement('div');
+      chartCard.className = 'col-md-6';
+      chartCard.innerHTML = `
+        <div class="card p-3">
+          <h5>${trend.category} (${trend.trend})</h5>
+          <div class="chart-container">
+            <canvas id="${prefix}-chart-${index}"></canvas>
           </div>
-        `;
-        summaryContainer.appendChild(col);
+        </div>
+      `;
+      chartsContainer.appendChild(chartCard);
 
-        // ✅ Plot all trends, not just increasing
-        const chartCard = document.createElement('div');
-        chartCard.className = 'col-md-6';
-        chartCard.innerHTML = `
-          <div class="card p-3">
-            <h5>${trend.category} (${trend.trend})</h5>
-            <div class="chart-container">
-              <canvas id="${prefix}-chart-${index}"></canvas>
-            </div>
-          </div>
-        `;
-        chartsContainer.appendChild(chartCard);
+      renderLineChart(`${prefix}-chart-${index}`, trend.dates, trend.quantities, trend.revenues);
+    });
+  }
 
-        renderLineChart(`${prefix}-chart-${index}`, trend.dates, trend.quantities);
-      });
-    }
-
-  
-    function renderLineChart(canvasId, labels, data) {
-      const ctx = document.getElementById(canvasId).getContext('2d');
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
+  function renderLineChart(canvasId, labels, quantityData, revenueData) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
             label: 'Quantity Sold',
-            data: data,
+            data: quantityData,
             borderColor: 'rgba(75, 192, 192, 1)',
             backgroundColor: 'rgba(75, 192, 192, 0.2)',
             fill: true,
             tension: 0.3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              title: { display: true, text: 'Date' }
-            },
-            y: {
-              beginAtZero: true,
-              title: { display: true, text: 'Quantity' }
+          },
+          {
+            label: 'Revenue (₱)',
+            data: revenueData,
+            borderColor: 'rgba(255, 159, 64, 1)',
+            backgroundColor: 'rgba(255, 159, 64, 0.2)',
+            fill: true,
+            tension: 0.3,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            title: { display: true, text: 'Date' }
+          },
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Quantity' },
+            position: 'left'
+          },
+          y1: {
+            beginAtZero: true,
+            title: { display: true, text: 'Revenue (₱)' },
+            position: 'right',
+            grid: {
+              drawOnChartArea: false
             }
           }
         }
-      });
-    }
+      }
+    });
+  }
+
   
     window.onload = loadCategoryTrends;
   </script>

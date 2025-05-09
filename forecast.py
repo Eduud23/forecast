@@ -49,7 +49,6 @@ def forecast_category_trends(df, season_months):
     season_name = 'Dry Season' if is_dry_season else 'Rainy Season'
 
     for category in df['category'].unique():
-        # Filter only historical data for this category in this season
         cat_df = df[(df['category'] == category) & (df['date'].dt.month.isin(season_months))]
 
         if len(cat_df) < 5:
@@ -58,24 +57,23 @@ def forecast_category_trends(df, season_months):
         cat_df = cat_df.copy()
         cat_df['days_since'] = (cat_df['date'] - cat_df['date'].min()).dt.days
         x = cat_df[['days_since']]
-        y = cat_df[['quantity']]
-        model = LinearRegression().fit(x, y)
 
-        # === Determine next season's forecast window ===
+        # Linear models for quantity and revenue
+        quantity_model = LinearRegression().fit(x, cat_df[['quantity']])
+        revenue_model = LinearRegression().fit(x, cat_df[['total_php']])
+
         last_date = df['date'].max()
         current_year = last_date.year
 
         if is_dry_season:
-            # Dry season: December to May
-            if last_date.month > 5:  # If we're past May, next dry starts December this year
+            if last_date.month > 5:
                 forecast_start = datetime(current_year, 12, 1)
                 forecast_end = datetime(current_year + 1, 5, 31)
             else:
                 forecast_start = datetime(current_year + 1, 12, 1)
                 forecast_end = datetime(current_year + 2, 5, 31)
         else:
-            # Rainy season: June to November
-            if last_date.month < 6:  # Before June
+            if last_date.month < 6:
                 forecast_start = datetime(current_year, 6, 1)
                 forecast_end = datetime(current_year, 11, 30)
             else:
@@ -85,23 +83,31 @@ def forecast_category_trends(df, season_months):
         forecast_days = pd.date_range(start=forecast_start, end=forecast_end)
         forecast_days = [d for d in forecast_days if d.month in season_months]
 
-        total_forecast = 0
+        total_forecast_qty = 0
+        total_forecast_php = 0
         for forecast_date in forecast_days:
             days_since = (forecast_date - cat_df['date'].min()).days
-            predicted = model.predict(pd.DataFrame({'days_since': [days_since]}))[0]
-            total_forecast += max(0, predicted[0])
+            predicted_qty = quantity_model.predict([[days_since]])[0][0]
+            predicted_php = revenue_model.predict([[days_since]])[0][0]
+            total_forecast_qty += max(0, predicted_qty)
+            total_forecast_php += max(0, predicted_php)
 
-        past_total = cat_df['quantity'].sum()
-        trend_status = 'Increasing' if total_forecast > past_total else 'Decreasing'
+        past_total_qty = cat_df['quantity'].sum()
+        past_total_php = cat_df['total_php'].sum()
+
+        trend_status = 'Increasing' if total_forecast_qty > past_total_qty else 'Decreasing'
 
         trend_data.append({
             'category': category,
             'season': season_name,
-            'historical_quantity': float(past_total),
-            'forecast_quantity': float(total_forecast),
+            'historical_quantity': float(past_total_qty),
+            'forecast_quantity': float(total_forecast_qty),
+            'historical_total_php': round(float(past_total_php), 2),
+            'forecast_total_php': round(float(total_forecast_php), 2),
             'trend': trend_status,
             'dates': [d.strftime('%Y-%m-%d') for d in cat_df['date']],
-            'quantities': [int(q) for q in cat_df['quantity']]
+            'quantities': [int(q) for q in cat_df['quantity']],
+            'revenues': [round(float(p), 2) for p in cat_df['total_php']]
         })
 
     return trend_data
