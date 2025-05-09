@@ -63,18 +63,21 @@ def forecast_category_trends(df, season_months):
         revenue_model = LinearRegression().fit(x, cat_df[['total_php']])
 
         today = datetime.today()
+        current_year = today.year
 
         if is_dry_season:
-            forecast_start = datetime(today.year, 12, 1)
-            forecast_end = datetime(today.year + 1, 5, 31)
+            # Forecast Dry Season: Dec THIS YEAR to May NEXT YEAR
+            forecast_start = datetime(current_year, 12, 1)
+            forecast_end = datetime(current_year + 1, 5, 31)
         else:
-            if today.month >= 12:
-                forecast_start = datetime(today.year + 1, 6, 1)
-                forecast_end = datetime(today.year + 1, 11, 30)
-            else:
-                forecast_start = datetime(today.year, 6, 1)
-                forecast_end = datetime(today.year, 11, 30)
+            # Forecast Rainy Season: Jun to Nov THIS YEAR
+            forecast_start = datetime(current_year, 6, 1)
+            forecast_end = datetime(current_year, 11, 30)
 
+            # But if today is already December, rainy season is next year
+            if today.month == 12:
+                forecast_start = datetime(current_year + 1, 6, 1)
+                forecast_end = datetime(current_year + 1, 11, 30)
 
         forecast_days = pd.date_range(start=forecast_start, end=forecast_end)
         forecast_days = [d for d in forecast_days if d.month in season_months]
